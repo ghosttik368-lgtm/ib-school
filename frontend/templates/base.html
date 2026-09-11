@@ -1,0 +1,100 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="light">
+    <title>{% block title %}ИБ{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/foundation.css' %}">
+<link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+</head>
+<body>
+    <aside class="sidebar">
+        <nav class="sidebar__nav" aria-label="Разделы платформы">
+            <a class="sidebar__link {% if active_section == 'courses' %}is-active{% endif %}" href="{% url 'home' %}" title="Доступные курсы" aria-label="Доступные курсы">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-4 9 4-9 4-9-4Z"/><path d="m5 12 7 3 7-3M5 16l7 3 7-3"/></svg>
+                <span>Курсы</span>
+            </a>
+            <a class="sidebar__link {% if active_section == 'library' %}is-active{% endif %}" href="{% url 'courses:library' %}" title="Моя библиотека" aria-label="Моя библиотека">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A3.5 3.5 0 0 1 7.5 2H11v18H7.5A3.5 3.5 0 0 0 4 23V5.5ZM20 5.5A3.5 3.5 0 0 0 16.5 2H13v18h3.5a3.5 3.5 0 0 1 3.5 3V5.5Z"/></svg>
+                <span>Библиотека</span>
+            </a>
+            <a class="sidebar__link {% if active_section == 'chat' %}is-active{% endif %}" href="{% url 'courses:chat' %}" title="Общий чат" aria-label="Общий чат">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-9 8.47A9.8 9.8 0 0 1 8 19l-5 2 1.65-4.5A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 10h8M8 14h5"/></svg>
+                <span>Чат</span><b id="chat-unread" class="nav-count" hidden></b>
+            </a>
+            {% if user.can_manage_courses %}
+                <a class="sidebar__link {% if active_section == 'teaching' %}is-active{% endif %}" href="{% url 'teaching:groups' %}" title="Кабинет преподавателя" aria-label="Кабинет преподавателя"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 6a3 3 0 0 1 0 6M18 16a4 4 0 0 1 3 4"/></svg><span>Группы</span></a>
+                <a class="sidebar__link {% if active_section == 'analytics' %}is-active{% endif %}" href="{% url 'learning:analytics' %}" title="Аналитика прохождения" aria-label="Аналитика прохождения"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4M4 20h16M8 16v-4M13 16V8M18 16V5"/></svg><span>Аналитика</span></a>
+                <a class="sidebar__link sidebar__link--management {% if active_section == 'management' %}is-active{% endif %}" href="{% url 'courses:management_dashboard' %}" title="Управление курсами" aria-label="Управление курсами">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M4 12h16M4 18h10"/><circle cx="17" cy="6" r="2"/><circle cx="7" cy="18" r="2"/></svg>
+                    <span>Управление</span>
+                </a>
+            {% endif %}
+        {% if user.is_platform_admin %}<a class="sidebar__link" href="{% url 'access:people' %}" title="Пользователи" aria-label="Пользователи"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg><span>Пользователи</span></a>{% endif %}</nav>
+    </aside>
+
+    <header class="topbar">
+        <a class="brand" href="{% url 'home' %}" aria-label="ИБ — главная">
+            <span class="brand__mark">
+                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 39 10v11c0 10-6 18-15 23C15 39 9 31 9 21V10L24 4Z"/><path d="M18 14v17M24 12v22M30 14v17"/><path d="M5 15h5M4 21h5M5 27h5M38 15h5M39 21h5M38 27h5"/></svg>
+            </span>
+            <span class="brand__name">ИБ</span>
+        </a>
+
+        <nav class="topnav" aria-label="Основные разделы">
+            <a class="topnav__link {% if active_section == 'courses' or active_section == 'library' %}is-active{% endif %}" href="{% url 'home' %}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 8 9-4 9 4-9 4-9-4Z"/><path d="m5 12 7 3 7-3"/></svg>
+                Курсы
+            </a>
+            <a class="topnav__link {% if active_section == 'leaderboard' %}is-active{% endif %}" href="{% url 'courses:leaderboard' %}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v3a4 4 0 0 1-8 0V4ZM12 11v5M8 20h8M9 16h6"/><path d="M8 6H4v1a4 4 0 0 0 4 4M16 6h4v1a4 4 0 0 1-4 4"/></svg>
+                Рейтинг
+            </a>
+        </nav>
+
+        <div class="profile-menu">
+            <button id="notifications-open" class="notify-trigger" type="button" aria-label="Уведомления" title="Уведомления"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><b id="notice-unread" class="nav-count" hidden></b></button>
+            {% if user.can_manage_courses %}
+                <a class="profile-menu__manage" href="{% url 'courses:management_dashboard' %}">Управление</a>
+            {% endif %}
+            <a class="profile-menu__identity" href="{% url 'accounts:profile' %}">
+                <span class="profile-menu__text">
+                    <strong>{{ user.display_name }}</strong>
+                    <small>{% if user.study_year %}{{ user.get_study_year_display }}{% else %}{{ user.role_label }}{% endif %}</small>
+                </span>
+                <span class="avatar">{{ user.username|first|upper }}</span>
+            </a>
+            <form action="{% url 'logout' %}" method="post">
+                {% csrf_token %}
+                <button class="icon-button" type="submit" title="Выйти" aria-label="Выйти">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></svg>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <main class="workspace">
+        {% if messages %}
+            <div class="toast-stack" aria-live="polite">
+                {% for message in messages %}
+                    <div class="toast toast--{{ message.tags|default:'info' }}">
+                        <span>{{ message }}</span>
+                        <button type="button" class="toast__close" aria-label="Закрыть">×</button>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="{% static 'js/platform.js' %}"></script>
+    <dialog id="notifications-dialog" class="notifications-dialog"><header><h2>Уведомления</h2><button type="button" id="notifications-close" aria-label="Закрыть">×</button></header><a class="notify-shortcut" href="{% url 'teaching:assigned' %}">Мои назначенные курсы →</a><a class="notify-shortcut" href="{% url 'messenger:home' %}">Перейти к сообщениям →</a><div id="notifications-list"></div><p id="notifications-status" role="status"></p><button type="button" class="button button--ghost" id="notifications-read">Отметить показанные прочитанными</button><form hidden id="notifications-csrf">{% csrf_token %}</form></dialog>
+    <script src="{% static 'js/notifications.js' %}" defer></script>
+    {% block extra_js %}{% endblock %}
+<script src="{% static 'js/foundation.js' %}" defer></script>
+</body>
+</html>

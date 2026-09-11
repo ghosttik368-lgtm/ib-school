@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Управление курсами — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/management.css' %}">{% endblock %}
+
+{% block content %}
+<div class="management-page page-enter">
+    <header class="management-head">
+        <div>
+            <span class="eyebrow">Рабочее пространство</span>
+            <h1>Управление курсами</h1>
+            <p>Создавайте программу последовательно — от идеи до публикации.</p>
+        </div>
+        <div class="management-actions">
+            {% if drafts %}
+                <form class="publish-control" action="{% url 'courses:course_publish' %}" method="post">
+                    {% csrf_token %}
+                    <label for="publish-course">Опубликовать</label>
+                    <select name="course_id" id="publish-course" required>
+                        <option value="">Выберите черновик</option>
+                        {% for draft in drafts %}<option value="{{ draft.id }}">{{ draft.title }}</option>{% endfor %}
+                    </select>
+                    <button class="button button--dark" type="submit">Опубликовать</button>
+                </form>
+            {% endif %}
+            <button class="button button--primary button--create" type="button" data-dialog-open="course-wizard">
+                <span>＋</span> Создать курс
+            </button>
+        </div>
+    </header>
+
+    {% if courses %}
+        <section class="management-courses" aria-label="Курсы">
+            {% for course in courses %}
+                <a class="management-course-card {% if selected_course.id == course.id %}is-selected{% endif %}" href="{% url 'courses:management_dashboard' %}?course={{ course.id }}">
+                    <span class="management-course-card__cover">
+                        {% if course.cover %}<img src="{{ course.cover.url }}" alt="">
+                        {% else %}<i>{{ course.title|first|upper }}</i><b></b>{% endif %}
+                        <em class="status status--{{ course.status }}">{{ course.get_status_display }}</em>
+                    </span>
+                    <span class="management-course-card__body">
+                        <small>{{ course.direction.name }} · {{ course.get_level_display }}</small>
+                        <strong>{{ course.title }}</strong>
+                        <span>{{ course.lessons_total }} уроков · {{ course.materials_total }} материалов</span>
+                    </span>
+                    <span class="management-course-card__arrow">→</span>
+                </a>
+            {% endfor %}
+        </section>
+    {% else %}
+        <section class="management-empty">
+            <span>01</span><h2>Создайте первый курс</h2><p>Мастер задаст вопросы по очереди и сохранит результат как черновик.</p>
+            <button class="button button--primary" type="button" data-dialog-open="course-wizard">Начать создание</button>
+        </section>
+    {% endif %}
+
+    {% if selected_course %}
+        <section class="course-builder">
+            <header class="builder-head">
+                <div class="builder-head__title">
+                    <span class="builder-kicker">Редактор курса</span>
+                    <h2>{{ selected_course.title }}</h2>
+                    <p>{{ selected_course.short_description|default:"Добавьте краткое описание в настройках курса." }}</p>
+                </div>
+                <div class="builder-head__actions">
+                    {% if selected_course.status == 'published' %}
+                        <a class="button button--light-outline" href="{{ selected_course.get_absolute_url }}">Открыть курс ↗</a>
+                        <form method="post" action="{% url 'courses:course_unpublish' selected_course.id %}">{% csrf_token %}<button class="button button--light-outline" type="submit">Вернуть в черновики</button></form>
+                    {% endif %}
+                    <button class="button button--white" type="button" data-dialog-open="course-settings">Настройки</button>
+                </div>
+            </header>
+
+            <div class="builder-workspace">
+                <aside class="lesson-navigation">
+                    <div class="lesson-navigation__head"><span>Уроки</span><strong>{{ lessons|length }}</strong></div>
+                    <div class="lesson-navigation__list">
+                        {% for lesson in lessons %}
+                            <a class="lesson-tab {% if selected_lesson.id == lesson.id %}is-active{% endif %}" href="{% url 'courses:management_dashboard' %}?course={{ selected_course.id }}&lesson={{ lesson.id }}">
+                                <span>{{ lesson.order|stringformat:"02d" }}</span>
+                                <span><strong>{{ lesson.title }}</strong><small>{{ lesson.materials_total }} материалов</small></span>
+                                {% if not lesson.is_active %}<i>скрыт</i>{% endif %}
+                            </a>
+                        {% empty %}
+                            <div class="lesson-navigation__empty">Уроков пока нет. Начните с первого.</div>
+                        {% endfor %}
+                    </div>
+                    <form action="{% url 'courses:lesson_create' selected_course.id %}" method="post">
+                        {% csrf_token %}
+                        <button class="add-lesson-button" type="submit"><span>＋</span> Добавить урок</button>
+                    </form>
+                </aside>
+
+                <div class="lesson-editor">
+                    {% if selected_lesson %}
+                        <header class="lesson-editor__head">
+                            <div><span class="eyebrow">Урок {{ selected_lesson.order }}</span><h2>{{ selected_lesson.title }}</h2></div>
+                            <button class="button button--soft" type="button" data-dialog-open="lesson-settings">Настроить урок</button>
+                        </header>
+
+                        <div class="editor-note">
+                            <span>✦</span>
+                            <p>Добавляйте материалы в том порядке, в котором студент должен их изучить. Тест начислит <strong>{{ selected_course.points_per_test }} баллов</strong> после первого идеального прохождения.</p>
+                        </div>
+
+                        <section class="materials-section">
+                            <div class="materials-section__head"><div><h3>Содержимое урока</h3><p>Видео, статьи, файлы, ссылки и проверка знаний.</p></div><button class="button button--primary" type="button" data-dialog-open="material-create">＋ Добавить материал</button></div>
+
+                            {% if selected_lesson.materials.all %}
+                                <div class="admin-materials">
+                                    {% for material in selected_lesson.materials.all %}
+                                        <article class="admin-material">
+                                            <header class="admin-material__head">
+                                                <span class="admin-material__icon">{% if material.kind == 'video' %}▶{% elif material.kind == 'text' %}Aa{% elif material.kind == 'quiz' %}?{% elif material.kind == 'link' %}↗{% else %}↓{% endif %}</span>
+                                                <div><small>{{ material.get_kind_display }} · №{{ material.order }}</small><h4>{{ material.title }}</h4></div>
+                                                <div class="admin-material__tools"><button class="mini-edit" type="button" data-dialog-open="material-edit-{{ material.id }}">Изменить</button><form action="{% url 'courses:material_delete' material.id %}" method="post" data-confirm="Удалить материал «{{ material.title }}»?">{% csrf_token %}<button class="mini-delete" type="submit" aria-label="Удалить">×</button></form></div>
+                                            </header>
+
+                                            {% if material.kind == 'text' %}<p class="admin-material__preview">{{ material.text|truncatechars:180 }}</p>{% endif %}
+                                            {% if material.file %}<p class="admin-material__file">Файл: {{ material.file.name }}</p>{% endif %}
+                                            {% if material.external_url %}<p class="admin-material__file">Ссылка: {{ material.external_url|truncatechars:70 }}</p>{% endif %}
+
+                                            {% if material.kind == 'quiz' %}
+                                                <div class="question-builder">
+                                                    <div class="question-builder__head"><span>Вопросы теста</span><button type="button" data-dialog-open="question-{{ material.id }}">＋ Добавить вопрос</button></div>
+                                                    <div class="question-list">
+                                                        {% for question in material.quiz.questions.all %}
+                                                            <div class="question-item">
+                                                                <span>{{ forloop.counter }}</span>
+                                                                <div><strong>{{ question.text }}</strong><small>{% for choice in question.choices.all %}{% if choice.is_correct %}Правильный ответ: {{ choice.text }}{% endif %}{% endfor %}</small></div>
+                                                                <form action="{% url 'courses:question_delete' question.id %}" method="post" data-confirm="Удалить этот вопрос?">{% csrf_token %}<button class="mini-delete" type="submit">×</button></form>
+                                                            </div>
+                                                        {% empty %}<p class="question-list__empty">Пока нет вопросов. Для публикации добавьте хотя бы один.</p>{% endfor %}
+                                                    </div>
+                                                </div>
+
+                                                <dialog class="app-dialog question-dialog" id="question-{{ material.id }}">
+                                                    <form method="post" action="{% url 'courses:question_create' material.id %}" class="dialog-form">
+                                                        {% csrf_token %}
+                                                        <header class="dialog-head"><div><span class="eyebrow">{{ material.title }}</span><h2>Новый вопрос</h2></div><button class="dialog-close" type="button" data-dialog-close>×</button></header>
+                                                        <div class="field"><label for="question-text-{{ material.id }}">Вопрос</label><textarea class="form-control" id="question-text-{{ material.id }}" name="text" rows="3" required placeholder="Введите формулировку вопроса"></textarea></div>
+                                                        <div class="answer-grid">
+                                                            <div class="field"><label>Ответ 1</label><input class="form-control" name="answer_1" required></div>
+                                                            <div class="field"><label>Ответ 2</label><input class="form-control" name="answer_2" required></div>
+                                                            <div class="field"><label>Ответ 3</label><input class="form-control" name="answer_3" required></div>
+                                                            <div class="field"><label>Ответ 4</label><input class="form-control" name="answer_4" required></div>
+                                                        </div>
+                                                        <div class="field"><label>Какой ответ правильный?</label><select class="form-control" name="correct_answer" required><option value="1">Ответ 1</option><option value="2">Ответ 2</option><option value="3">Ответ 3</option><option value="4">Ответ 4</option></select></div>
+                                                        <footer class="dialog-actions"><button class="button button--ghost" type="button" data-dialog-close>Отмена</button><button class="button button--primary" type="submit">Добавить вопрос</button></footer>
+                                                    </form>
+                                                </dialog>
+                                            {% endif %}
+                                        </article>
+
+                                        <dialog class="app-dialog material-dialog" id="material-edit-{{ material.id }}">
+                                            <form method="post" action="{% url 'courses:material_update' material.id %}" enctype="multipart/form-data" class="dialog-form" data-material-form>
+                                                {% csrf_token %}
+                                                <header class="dialog-head"><div><span class="eyebrow">{{ material.get_kind_display }}</span><h2>Изменить материал</h2></div><button class="dialog-close" type="button" data-dialog-close>×</button></header>
+                                                <div class="field"><label>Тип материала</label>{{ material.edit_form.kind }}</div>
+                                                <div class="field"><label>Название</label>{{ material.edit_form.title }}</div>
+                                                <div class="field material-dependent" data-show-for="text"><label>Текст статьи</label>{{ material.edit_form.text }}</div>
+                                                <div class="field material-dependent" data-show-for="video,presentation,document,pdf"><label>Файл</label>{{ material.edit_form.file }}</div>
+                                                <div class="field material-dependent" data-show-for="video,link"><label>Внешняя ссылка</label>{{ material.edit_form.external_url }}</div>
+                                                <footer class="dialog-actions"><button class="button button--ghost" type="button" data-dialog-close>Отмена</button><button class="button button--primary" type="submit">Сохранить</button></footer>
+                                            </form>
+                                        </dialog>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="materials-empty"><span>＋</span><h3>Урок пока пуст</h3><p>Добавьте первый материал — например, видеолекцию или статью.</p><button class="button button--soft" type="button" data-dialog-open="material-create">Добавить материал</button></div>
+                            {% endif %}
+
+                            <article class="compiler-placeholder"><span>&lt;/&gt;</span><div><small>Следующий этап</small><strong>Консоль программирования</strong><p>Интерфейс уже зарезервирован. Компиляторы и изолированный запуск кода подключим отдельно.</p></div><em>Скоро</em></article>
+                        </section>
+                    {% else %}
+                        <div class="lesson-editor__welcome">
+                            <span>↙</span><h2>{% if lessons %}Выберите урок{% else %}Добавьте первый урок{% endif %}</h2><p>{% if lessons %}Нажмите на урок слева, чтобы заполнить его материалами.{% else %}Он автоматически получит название «Урок 1». Затем вы сможете изменить название и добавить содержимое.{% endif %}</p>
+                            {% if not lessons %}<form action="{% url 'courses:lesson_create' selected_course.id %}" method="post">{% csrf_token %}<button class="button button--primary" type="submit">＋ Добавить урок</button></form>{% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
+</div>
+
+<dialog class="app-dialog course-wizard" id="course-wizard">
+    <form method="post" action="{% url 'courses:course_create' %}" enctype="multipart/form-data" data-course-wizard>
+        {% csrf_token %}
+        <header class="wizard-head">
+            <div><span class="eyebrow">Новый курс</span><h2 data-wizard-title>Выберите направление</h2></div>
+            <button class="dialog-close" type="button" data-dialog-close aria-label="Закрыть">×</button>
+        </header>
+        <div class="wizard-progress" aria-label="Шаги создания"><span class="is-active"></span><span></span><span></span><span></span><span></span></div>
+
+        <section class="wizard-step is-active" data-step="1" data-title="Выберите направление">
+            <p class="wizard-lead">К какому разделу знаний относится будущий курс?</p>
+            <div class="choice-grid choice-grid--directions">
+                {% for value, label in course_form.direction.field.choices %}{% if value %}
+                    <label class="choice-card"><input type="radio" name="direction" value="{{ value }}" required><span><i>0{{ forloop.counter0 }}</i><strong>{{ label }}</strong><small>Выбрать направление</small></span></label>
+                {% endif %}{% endfor %}
+            </div>
+        </section>
+
+        <section class="wizard-step" data-step="2" data-title="Укажите сложность">
+            <p class="wizard-lead">Это поможет студенту оценить, готов ли он к материалу.</p>
+            <div class="choice-grid">
+                {% for value, label in course_form.level.field.choices %}
+                    <label class="choice-card choice-card--level"><input type="radio" name="level" value="{{ value }}" {% if value == 'beginner' %}checked{% endif %} required><span><i>{{ forloop.counter|stringformat:"02d" }}</i><strong>{{ label }}</strong><small>{% if value == 'beginner' %}Можно начать без подготовки{% elif value == 'basic' %}Нужны базовые знания{% else %}Для опытных студентов{% endif %}</small></span></label>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section class="wizard-step" data-step="3" data-title="Дайте курсу имя">
+            <p class="wizard-lead">Короткое конкретное название легче найти в каталоге.</p>
+            <div class="field field--large"><label for="wizard-title-input">Название курса</label><input class="form-control" id="wizard-title-input" type="text" name="title" maxlength="180" required placeholder="Например, Основы C++"></div>
+        </section>
+
+        <section class="wizard-step" data-step="4" data-title="Расскажите о курсе">
+            <p class="wizard-lead">Эту информацию студент увидит до начала обучения.</p>
+            <div class="field"><label>Короткое описание</label><input class="form-control" type="text" name="short_description" maxlength="260" required placeholder="Одно понятное предложение о курсе"></div>
+            <div class="field"><label>Полное описание</label><textarea class="form-control" name="description" rows="5" required placeholder="Чему научится студент и что будет внутри"></textarea></div>
+            <div class="field field--points"><label>Баллов за каждый тест</label><input class="form-control" type="number" name="points_per_test" value="5" min="1" max="100" required><small>По умолчанию — 5 баллов.</small></div>
+        </section>
+
+        <section class="wizard-step" data-step="5" data-title="Добавьте обложку">
+            <p class="wizard-lead">Финальный штрих. Если пропустить, платформа создаст аккуратную текстовую обложку.</p>
+            <label class="cover-drop"><input type="file" name="cover" accept="image/png,image/jpeg,image/webp" data-cover-input><span>↑</span><strong>Перетащите изображение или выберите файл</strong><small>JPG, PNG или WebP</small><em data-cover-name>Файл не выбран</em></label>
+            <div class="wizard-summary"><span>После создания</span><p>Курс сохранится как черновик. Вы сразу сможете добавить уроки и материалы.</p></div>
+        </section>
+
+        <footer class="wizard-actions"><button class="button button--ghost" type="button" data-wizard-back disabled>Назад</button><span data-wizard-counter>Шаг 1 из 5</span><button class="button button--primary" type="button" data-wizard-next>Продолжить</button><button class="button button--primary is-hidden" type="submit" data-wizard-submit>Создать черновик</button></footer>
+    </form>
+</dialog>
+
+{% if selected_course %}
+<dialog class="app-dialog settings-dialog" id="course-settings">
+    <form method="post" action="{% url 'courses:course_update' selected_course.id %}" enctype="multipart/form-data" class="dialog-form">
+        {% csrf_token %}
+        <header class="dialog-head"><div><span class="eyebrow">{{ selected_course.get_status_display }}</span><h2>Настройки курса</h2></div><button class="dialog-close" type="button" data-dialog-close>×</button></header>
+        <div class="form-grid"><div class="field"><label>{{ course_edit_form.direction.label }}</label>{{ course_edit_form.direction }}</div><div class="field"><label>{{ course_edit_form.level.label }}</label>{{ course_edit_form.level }}</div></div>
+        <div class="field"><label>{{ course_edit_form.title.label }}</label>{{ course_edit_form.title }}</div>
+        <div class="field"><label>{{ course_edit_form.short_description.label }}</label>{{ course_edit_form.short_description }}</div>
+        <div class="field"><label>{{ course_edit_form.description.label }}</label>{{ course_edit_form.description }}</div>
+        <div class="form-grid"><div class="field"><label>{{ course_edit_form.points_per_test.label }}</label>{{ course_edit_form.points_per_test }}</div><div class="field"><label>{{ course_edit_form.cover.label }}</label>{{ course_edit_form.cover }}</div></div>
+        <footer class="dialog-actions"><button class="button button--ghost" type="button" data-dialog-close>Отмена</button><button class="button button--primary" type="submit">Сохранить</button></footer>
+    </form>
+    <form class="danger-zone" action="{% url 'courses:course_delete' selected_course.id %}" method="post" data-confirm="Удалить курс «{{ selected_course.title }}» вместе с уроками и прогрессом? Это действие нельзя отменить.">{% csrf_token %}<span><strong>Удаление курса</strong><small>Будут удалены материалы и связанные результаты.</small></span><button type="submit">Удалить</button></form>
+</dialog>
+{% endif %}
+
+{% if selected_lesson %}
+<dialog class="app-dialog settings-dialog" id="lesson-settings">
+    <form method="post" action="{% url 'courses:lesson_update' selected_lesson.id %}" class="dialog-form">
+        {% csrf_token %}
+        <header class="dialog-head"><div><span class="eyebrow">Урок {{ selected_lesson.order }}</span><h2>Настройки урока</h2></div><button class="dialog-close" type="button" data-dialog-close>×</button></header>
+        <div class="field"><label>{{ lesson_form.title.label }}</label>{{ lesson_form.title }}</div>
+        <div class="field"><label>{{ lesson_form.summary.label }}</label>{{ lesson_form.summary }}</div>
+        <div class="field"><label>{{ lesson_form.duration_minutes.label }}</label>{{ lesson_form.duration_minutes }}</div>
+        <label class="toggle-field">{{ lesson_form.is_active }}<span><strong>Доступен студентам</strong><small>Скрытый урок не учитывается в прогрессе.</small></span></label>
+        <footer class="dialog-actions"><button class="button button--ghost" type="button" data-dialog-close>Отмена</button><button class="button button--primary" type="submit">Сохранить</button></footer>
+    </form>
+    <form class="danger-zone" action="{% url 'courses:lesson_delete' selected_lesson.id %}" method="post" data-confirm="Удалить «{{ selected_lesson.title }}» со всеми материалами?">{% csrf_token %}<span><strong>Удаление урока</strong><small>Все материалы урока будут удалены.</small></span><button type="submit">Удалить</button></form>
+</dialog>
+
+<dialog class="app-dialog material-dialog" id="material-create">
+    <form method="post" action="{% url 'courses:material_create' selected_lesson.id %}" enctype="multipart/form-data" class="dialog-form" data-material-form>
+        {% csrf_token %}
+        <header class="dialog-head"><div><span class="eyebrow">{{ selected_lesson.title }}</span><h2>Добавить материал</h2></div><button class="dialog-close" type="button" data-dialog-close>×</button></header>
+        <div class="field"><label>Тип материала</label>{{ material_form.kind }}</div>
+        <div class="field"><label>Название</label>{{ material_form.title }}</div>
+        <div class="field material-dependent" data-show-for="text"><label>Текст статьи</label>{{ material_form.text }}</div>
+        <div class="field material-dependent" data-show-for="video,presentation,document,pdf"><label>Файл</label>{{ material_form.file }}<small>Видео до 500 МБ; PDF, PPT/PPTX, DOC/DOCX, ZIP.</small></div>
+        <div class="field material-dependent" data-show-for="video,link"><label>Внешняя ссылка</label>{{ material_form.external_url }}<small>Для видео можно загрузить файл или указать ссылку.</small></div>
+        <div class="quiz-material-note material-dependent" data-show-for="quiz"><span>?</span><p>После создания теста на странице появится кнопка «Добавить вопрос».</p></div>
+        <footer class="dialog-actions"><button class="button button--ghost" type="button" data-dialog-close>Отмена</button><button class="button button--primary" type="submit">Добавить</button></footer>
+    </form>
+</dialog>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/management.js' %}"></script>{% endblock %}

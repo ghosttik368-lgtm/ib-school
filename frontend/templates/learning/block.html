@@ -1,0 +1,43 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ material.title }} — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/studio.css' %}"><link rel="stylesheet" href="{% static 'css/learning.css' %}"><link rel="stylesheet" href="{% static 'css/practice.css' %}">{% endblock %}
+{% block content %}
+<div class="page-container page-enter learning-page" id="study-block" data-id="{{ material.id }}" data-save="{% url 'practice:save' material.id %}">
+  {{ workspace_data|json_script:'workspace-data' }}
+  <form hidden id="workspace-csrf">{% csrf_token %}</form>
+  <nav class="breadcrumbs"><a href="{{ course.get_absolute_url }}">{{ course.title }}</a><span>→</span><a href="{% url 'courses:lesson_detail' material.lesson_id %}">{{ material.lesson.title }}</a></nav>
+  <header class="page-heading"><div><span class="eyebrow">{{ material.get_kind_display }}</span><h1>{{ material.title }}</h1></div>{% if done %}<span class="completed-badge">✓ Пройден · +1 балл</span>{% endif %}</header>
+  <section class="material-card">
+  {% if material.kind == 'code' %}
+    {% include 'practice/editor.html' %}
+  {% elif material.kind == 'quiz' %}
+    <p>Проходной результат — {{ material.quiz.passing_score }}%. За прохождение блока — 1 балл.</p>
+    {% if latest_attempt %}<p class="attempt-badge {% if latest_attempt.passed %}is-passed{% endif %}">Последняя попытка: {{ latest_attempt.score_percent }}%</p>{% endif %}
+    {% if done %}<p>Тест пройден. Повторное открытие не изменяет результат и баллы.</p>{% else %}
+    <form class="quiz-form" method="post" action="{% url 'courses:submit_quiz' material.quiz.id %}">{% csrf_token %}
+      {% for question in material.quiz.questions.all %}<fieldset class="quiz-question"><legend><span>{{ forloop.counter }}</span>{{ question.text }}</legend>
+        {% if question.kind == 'short' %}<label>Ваш ответ<input type="text" name="question_{{ question.id }}" maxlength="500" required autocomplete="off"></label>
+        {% else %}<div class="quiz-options">{% for choice in question.choices.all %}<label class="quiz-option"><input type="{% if question.kind == 'multiple' %}checkbox{% else %}radio{% endif %}" name="question_{{ question.id }}" value="{{ choice.id }}" {% if question.kind == 'single' %}required{% endif %}><span>{{ choice.text }}</span></label>{% endfor %}</div>{% endif %}
+      </fieldset>{% endfor %}
+      <button class="button button--primary">Проверить ответы</button>
+    </form>{% endif %}
+    {% if video_feedback %}<section class="quiz-video-feedback"><h2>Разбор по лекции</h2>
+      {% for item in video_feedback %}<details class="question-card"><summary>{{ forloop.counter }}. {{ item.text }}</summary><p><strong>Ответ:</strong> {{ item.answer }}</p><p>{{ item.explanation }}</p><blockquote>{{ item.quote }}</blockquote><a class="button button--ghost" href="{% url 'autoquiz:replay' item.id %}">Повторить этот момент · {{ item.time }}</a></details>{% endfor %}
+    </section>{% endif %}
+  {% else %}
+    {% if material.text %}<div class="article-content">{% if material.rich_text %}{{ material.text|safe }}{% else %}{{ material.text|linebreaks }}{% endif %}</div>{% endif %}
+    {% if material.file %}
+      {% if material.kind == 'video' %}<video class="lesson-video" controls preload="metadata" src="{{ material.file.url }}"></video>
+      {% elif material.kind == 'pdf' %}<iframe class="pdf-viewer" src="{{ material.file.url }}" title="{{ material.title }}"></iframe>{% endif %}
+      <a class="file-row" href="{{ material.file.url }}" target="_blank" rel="noopener noreferrer">Открыть или скачать материал ↗</a>
+    {% endif %}
+    {% if material.external_url %}<a class="file-row" href="{{ material.external_url }}" target="_blank" rel="noopener noreferrer">Открыть материал ↗</a>{% endif %}
+    {% for attachment in material.attachments.all %}<iframe class="pdf-viewer" src="{{ attachment.file.url }}" title="{{ attachment.title }}"></iframe>{% endfor %}
+    {% if not done %}<form class="learning-complete" method="post" action="{% url 'learning:complete' material.id %}">{% csrf_token %}<button class="button button--primary">Ознакомился · получить 1 балл</button></form>{% endif %}
+  {% endif %}
+  </section>
+  <footer class="learning-footer"><a class="button button--ghost" href="{% url 'courses:lesson_detail' material.lesson_id %}">К блокам урока</a><span data-course-percent>Пройдено {{ enrollment.progress_percent }}% курса</span>{% if next_block %}<form method="post" action="{% url 'learning:start' next_block.id %}">{% csrf_token %}<button class="button button--primary">Следующий блок →</button></form>{% else %}<a href="{{ course.get_absolute_url }}">К программе курса</a>{% endif %}</footer>
+  <details class="study-outline"><summary>Навигация по курсу</summary>{% for item in all_blocks %}<a class="{% if item.done %}study-finished{% endif %}" href="{% url 'learning:block' item.id %}">{% if item.done %}✓{% endif %} {{ item.lesson.title }} · {{ item.title }}</a>{% endfor %}</details>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/practice.js' %}" defer></script>{% endblock %}

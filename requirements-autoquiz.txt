@@ -1,0 +1,5 @@
+# Optional AI dependencies. Existing Django requirements stay unchanged.
+faster-whisper==1.2.1
+ctranslate2==4.6.0
+av==16.0.1
+onnxruntime==1.23.2

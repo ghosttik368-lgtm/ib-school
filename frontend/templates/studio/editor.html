@@ -1,0 +1,12 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Редактор курса — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/studio.css' %}"><link rel="stylesheet" href="{% static 'css/autoquiz.css' %}">{% endblock %}
+{% block content %}{{ packet|json_script:'studio-data' }}{{ directions|json_script:'studio-directions' }}{% csrf_token %}
+<div class="studio-shell" id="studio-app">
+<header class="studio-top"><div><a class="studio-back" href="{% url 'courses:management_dashboard' %}">← Мои курсы</a><h1 id="course-heading">Редактор курса</h1><span id="save-status" role="status" aria-live="polite">Сохранено</span></div><div class="studio-top-actions"><button class="button button--ghost" id="save-now">Сохранить</button><button class="button button--ghost" id="preview-course">Предпросмотр</button><button class="button button--primary" id="publish-course">Опубликовать</button><button class="studio-icon" id="archive-course" title="Архив курса" aria-label="Архив курса">⋯</button></div></header>
+<div class="studio-alert" id="studio-error" role="alert" hidden></div>
+<div class="studio-conflict" id="conflict-actions" hidden><p>Ваши правки остаются в этой вкладке. Скачайте копию, прежде чем загружать актуальную версию.</p><button class="button button--ghost" id="export-local">Скачать мои правки</button><button class="button button--ghost" id="reload-server">Загрузить версию с сервера</button></div>
+<div class="studio-columns"><aside class="studio-outline"><div class="outline-heading"><strong>Программа</strong><button class="studio-icon" id="add-section" title="Добавить раздел" aria-label="Добавить раздел">＋</button></div><button class="outline-settings" id="course-settings">Настройки курса</button><div id="course-tree"></div><p class="outline-hint">Порядок можно менять стрелками или перетаскиванием.</p></aside><main class="studio-canvas"><div id="editor-panel"></div></main></div>
+</div>
+<dialog id="studio-dialog"><form method="dialog"><button class="studio-dialog-close" aria-label="Закрыть">×</button></form><div id="dialog-content"></div></dialog>
+{% endblock %}{% block extra_js %}<script src="{% static 'js/studio.js' %}" defer></script><script src="{% static 'js/autoquiz.js' %}" defer></script>{% endblock %}

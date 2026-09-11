@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль — ИБ{% endblock %}
+
+{% block content %}<div class="page-container access-actions"><a href="{% url 'access:security' %}">Безопасность аккаунта</a><a href="{% url 'password_change' %}">Изменить пароль</a></div>
+<div class="page-container page-enter">
+    <section class="profile-hero">
+        <span class="profile-hero__avatar">{{ user.username|first|upper }}</span>
+        <div><span class="eyebrow eyebrow--light">Профиль</span><h1>{{ user.display_name }}</h1><p>@{{ user.username }} · {% if user.study_year %}{{ user.get_study_year_display }}{% else %}{{ user.role_label }}{% endif %}</p></div>
+        <div class="profile-hero__score"><strong>{{ total_points }}</strong><span>баллов</span></div>
+    </section>
+
+    <div class="profile-grid">
+        <section class="surface-card">
+            <div class="section-heading section-heading--compact"><div><span class="eyebrow">Обучение</span><h2>Мои курсы</h2></div></div>
+            {% if enrollments %}
+                <div class="profile-course-list">
+                    {% for enrollment in enrollments %}
+                        <a href="{% url 'practice:resume' enrollment.id %}">
+                            <span><strong>{{ enrollment.course.title }}</strong><small>{{ enrollment.course.direction.name }}</small></span>
+                            <span class="profile-course-list__progress">{{ enrollment.progress_percent }}%</span>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% else %}<p class="muted">Вы ещё не добавляли курсы.</p>{% endif %}
+        </section>
+        <section class="surface-card">
+            <div class="section-heading section-heading--compact"><div><span class="eyebrow">Коллекция</span><h2>Достижения</h2></div></div>
+            {% if achievements %}
+                <div class="achievement-list">
+                    {% for achievement in achievements %}
+                        <div class="achievement"><span>✦</span><div><strong>{{ achievement.title }}</strong><small>{{ achievement.description }}</small></div></div>
+                    {% endfor %}
+                </div>
+            {% else %}<p class="muted">Первое достижение появится после успешного теста.</p>{% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

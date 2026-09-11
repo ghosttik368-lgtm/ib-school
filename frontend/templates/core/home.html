@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Курсы — ИБ{% endblock %}
+
+{% block content %}
+<div class="page-container page-enter">
+    <section class="hero-banner">
+        <div class="hero-banner__content">
+            <span class="hero-banner__badge">Онлайн-обучение</span>
+            <h1>Обучающая платформа</h1>
+            <p>Изучайте дисциплины в своём темпе и подтверждайте знания тестами.</p>
+        </div>
+        <div class="hero-banner__emblem" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+        </div>
+    </section>
+
+    <section class="catalog-toolbar" aria-label="Фильтры курсов">
+        <div class="filter-pills" data-course-filters>
+            <button class="filter-pill is-active" type="button" data-direction="all">Все курсы</button>
+            {% for direction in directions %}
+                <button class="filter-pill" type="button" data-direction="{{ direction.slug }}">{{ direction.name }}</button>
+            {% endfor %}
+        </div>
+        <label class="search-field">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
+            <input type="search" placeholder="Поиск по курсам и направлениям" data-course-search>
+        </label>
+    </section>
+
+    {% if courses %}
+        <section class="course-grid" data-course-grid>
+            {% for course in courses %}
+                <article class="course-card" data-course-card data-direction="{{ course.direction.slug }}" data-search="{{ course.title|lower }} {{ course.direction.name|lower }} {{ course.short_description|lower }}">
+                    <a class="course-card__cover" href="{{ course.get_absolute_url }}">
+                        {% if course.cover %}
+                            <img src="{{ course.cover.url }}" alt="Обложка курса {{ course.title }}">
+                        {% else %}
+                            <span class="course-cover-art" aria-hidden="true"><i></i><i></i><i></i></span>
+                        {% endif %}
+                        <span class="course-card__direction">{{ course.direction.name }}</span>
+                        <span class="course-card__level">{{ course.get_level_display }}</span>
+                    </a>
+                    <div class="course-card__body">
+                        <div class="course-card__meta">
+                            <span>{{ course.lessons_total }} уроков</span>
+                            <span>+1 за блок</span>
+                        </div>
+                        <h2><a href="{{ course.get_absolute_url }}">{{ course.title }}</a></h2>
+                        <p>{{ course.short_description|default:"Откройте программу курса и начните обучение." }}</p>
+                        {% if course.user_enrollment %}
+                            <div class="course-progress">
+                                <div class="course-progress__row"><span>Пройдено</span><strong>{{ course.user_enrollment.progress_percent }}%</strong></div>
+                                <div class="progress-bar"><span style="width: {{ course.user_enrollment.progress_percent }}%"></span></div>
+                            </div>
+                            <a class="button button--soft button--wide" href="{{ course.user_enrollment.course.get_absolute_url }}">Продолжить</a>
+                        {% else %}
+                            <a class="button button--primary button--wide" href="{{ course.get_absolute_url }}">Посмотреть курс</a>
+                        {% endif %}
+                    </div>
+                </article>
+            {% endfor %}
+        </section>
+        <div class="empty-state is-hidden" data-course-empty>
+            <span class="empty-state__icon">⌕</span>
+            <h2>Ничего не найдено</h2>
+            <p>Попробуйте изменить запрос или выбрать другое направление.</p>
+        </div>
+    {% else %}
+        <section class="empty-state empty-state--large">
+            <span class="empty-state__icon">＋</span>
+            <h2>Опубликованных курсов пока нет</h2>
+            <p>Когда администратор наполнит и опубликует первый курс, он появится здесь.</p>
+            {% if user.can_manage_courses %}
+                <a class="button button--primary" href="{% url 'courses:management_dashboard' %}">Создать первый курс</a>
+            {% endif %}
+        </section>
+    {% endif %}
+</div>
+{% endblock %}

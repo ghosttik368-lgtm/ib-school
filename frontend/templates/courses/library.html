@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Моя библиотека — ИБ{% endblock %}
+
+{% block content %}
+<div class="page-container page-enter">
+    <header class="page-heading">
+        <div><span class="eyebrow">Личное пространство</span><h1>Моя библиотека</h1><p>Все добавленные курсы и сохранённый прогресс.</p></div>
+        <a class="button button--soft" href="{% url 'home' %}">Найти новый курс</a>
+    </header>
+
+    {% if enrollments %}
+        <div class="library-list">
+            {% for enrollment in enrollments %}
+                <article class="library-card">
+                    <a class="library-card__cover" href="{{ enrollment.course.get_absolute_url }}">
+                        {% if enrollment.course.cover %}<img src="{{ enrollment.course.cover.url }}" alt="">
+                        {% else %}<span>{{ enrollment.course.title|first|upper }}</span>{% endif %}
+                    </a>
+                    <div class="library-card__main">
+                        <span class="tag tag--green">{{ enrollment.course.direction.name }}</span>
+                        <h2><a href="{{ enrollment.course.get_absolute_url }}">{{ enrollment.course.title }}</a></h2>
+                        <p>{{ enrollment.course.short_description|default:"Продолжайте обучение в удобном темпе." }}</p>
+                        <div class="course-progress">
+                            <div class="course-progress__row"><span>Прогресс курса</span><strong>{{ enrollment.progress_percent }}%</strong></div>
+                            <div class="progress-bar"><span style="width: {{ enrollment.progress_percent }}%"></span></div>
+                        </div>
+                    </div>
+                    <a class="button button--primary" href="{{ enrollment.course.get_absolute_url }}">Продолжить</a>
+                </article>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state empty-state--large"><span class="empty-state__icon">◇</span><h2>Библиотека пока пуста</h2><p>Добавьте первый опубликованный курс — прогресс начнёт сохраняться автоматически.</p><a class="button button--primary" href="{% url 'home' %}">Посмотреть курсы</a></div>
+    {% endif %}
+</div>
+{% endblock %}
+

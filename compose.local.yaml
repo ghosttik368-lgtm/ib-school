@@ -1,0 +1,31 @@
+# Local Docker Desktop testing only; not used in server mode by tools/dc.py.
+services:
+  judge-local:
+    image: ib-school-judge:${IB_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile
+      target: judge
+    profiles: [cpp-local]
+    env_file: .env.deploy
+    environment:
+      DJANGO_SETTINGS_MODULE: config.container_settings
+      DB_ENGINE: postgresql
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      DOCKER_HOST: unix:///var/run/docker.sock
+    user: "0:0"
+    init: true
+    restart: unless-stopped
+    command: [python, deploy/local_judge.py]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: ["/tmp:size=128m,mode=1777"]
+    volumes: ["/var/run/docker.sock:/var/run/docker.sock"]
+    networks: [data]
+    depends_on:
+      initialize: {condition: service_completed_successfully}
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}

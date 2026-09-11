@@ -1,0 +1,5 @@
+{% extends 'base.html' %}
+{% block content %}<div class="page-container"><section class="surface-card"><h1>{{ material.title }}</h1>
+<p>Откройте блок, чтобы приступить. Время открытия и результаты сохраняются для учебной аналитики.</p>
+<form method="post" action="{% url 'learning:start' material.id %}">{% csrf_token %}{% if seek != None %}{% load l10n %}<input type="hidden" name="t" value="{{ seek|unlocalize }}">{% endif %}<button class="button button--primary">Открыть блок</button></form>
+<a href="{% url 'courses:lesson_detail' material.lesson_id %}">Вернуться к уроку</a></section></div>{% endblock %}

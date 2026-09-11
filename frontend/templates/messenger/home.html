@@ -1,0 +1,32 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Сообщения — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/messenger.css' %}">{% endblock %}
+{% block content %}
+<div class="page-container page-enter messenger" id="messenger">
+  <section class="chat-list" aria-label="Диалоги">
+    <header><h1>Сообщения</h1><button class="button button--primary" id="new-chat" type="button">Написать</button></header>
+    <label class="sr-only" for="chat-search">Поиск чатов</label><input id="chat-search" class="chat-input" placeholder="Найти чат или собеседника" maxlength="100" type="search">
+    <div id="chat-rooms" class="chat-rooms"></div>
+    <footer><button id="rooms-prev" class="chat-action" type="button">Назад</button><span id="rooms-page"></span><button id="rooms-next" class="chat-action" type="button">Далее</button></footer>
+  </section>
+  <section class="chat-conversation" aria-label="Переписка">
+    <div id="chat-welcome" class="chat-welcome"><span class="chat-symbol" aria-hidden="true">↗</span><h2>Есть что обсудить?</h2><p>Выберите диалог или напишите преподавателю.</p></div>
+    <div id="chat-open" hidden>
+      <header class="chat-heading"><button id="chat-back" class="chat-action" type="button">← Чаты</button><div><h2 id="chat-title"></h2><span id="chat-info" class="chat-meta"></span></div><button class="chat-action" id="chat-members" type="button">Участники</button></header>
+      <div class="chat-feed" id="chat-feed" tabindex="0" aria-label="История сообщений"><button type="button" id="chat-older" class="chat-action">Предыдущие сообщения</button><div id="chat-messages"></div></div>
+      <button type="button" id="chat-latest" class="chat-latest" hidden>Новые сообщения ↓</button>
+      <form id="chat-compose" class="chat-compose" enctype="multipart/form-data">{% csrf_token %}
+        <div id="reply-bar" class="reply-bar" hidden><span id="reply-label"></span><button type="button" id="reply-clear" aria-label="Отменить ответ">×</button></div>
+        <label class="sr-only" for="chat-text">Сообщение</label><textarea id="chat-text" rows="3" maxlength="4000" placeholder="Сообщение…"></textarea>
+        <div class="compose-bottom"><label class="chat-attach">Прикрепить файл<input type="file" id="chat-file" accept=".pdf,.txt,.md,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv,.png,.jpg,.jpeg,.webp,.zip,.cpp,.h,.hpp,.c,.py"></label><span id="chat-filename" class="chat-meta">До 10 МБ</span><button id="file-clear" class="chat-action" type="button" hidden>Убрать</button><button class="button button--primary" id="chat-send" type="submit">Отправить</button></div>
+      </form>
+    </div>
+    <p id="chat-status" role="status" class="chat-status"></p>
+  </section>
+</div>
+<dialog class="work-dialog" id="chat-new-dialog"><form id="chat-new-form"><header><h2 id="new-title">Новый разговор</h2><button type="button" data-close aria-label="Закрыть">×</button></header><label id="kind-label">Тип чата<select id="new-kind"><option value="direct">Личный</option><option value="group">Групповой</option></select></label><label id="new-name-label" hidden>Название<input id="new-name" maxlength="120" placeholder="Например, практикум по C++"></label><label>Найти человека<input id="people-search" type="search" maxlength="100" placeholder="Никнейм"></label><p class="chat-meta" id="people-selected"></p><div id="people-results" class="people-results"></div><p id="new-error" role="alert"></p><p class="chat-meta">Участники группы видят всю историю переписки.</p><button class="button button--primary" type="submit">Продолжить</button></form></dialog>
+<dialog class="work-dialog" id="chat-members-dialog"><header><h2>Участники</h2><button type="button" data-close aria-label="Закрыть">×</button></header><div id="members-list"></div><div class="chat-member-tools"><button class="button button--ghost" id="members-add" type="button">Добавить</button><button class="button button--ghost" id="members-mute" type="button">Без уведомлений</button><button class="button button--ghost" id="members-leave" type="button">Выйти из группы</button></div><form id="rename-form"><label>Название чата<input id="rename-title" maxlength="120" required></label><button class="button button--ghost" type="submit">Переименовать</button></form><p id="members-error" role="alert"></p></dialog>
+<dialog class="work-dialog" id="chat-edit-dialog"><form id="edit-form"><header><h2>Редактировать сообщение</h2><button type="button" data-close aria-label="Закрыть">×</button></header><label for="edit-text">Текст</label><textarea id="edit-text" rows="6" maxlength="4000"></textarea><p id="edit-error" role="alert"></p><button class="button button--primary" type="submit">Сохранить</button></form></dialog>
+<noscript>Для переписки включите JavaScript.</noscript>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/messenger.js' %}" defer></script>{% endblock %}

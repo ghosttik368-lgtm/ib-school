@@ -1,0 +1,19 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}Тест по видео — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/studio.css' %}"><link rel="stylesheet" href="{% static 'css/autoquiz.css' %}">{% endblock %}
+{% block content %}
+{{ job_data|json_script:'autoquiz-data' }}
+<div class="aq-review page-enter" id="autoquiz-review" data-base="{% url 'autoquiz:review' job.id %}" data-draft-revision="{{ draft_revision }}">
+  <header class="aq-heading"><div><a href="{% url 'studio:editor' job.draft_id %}?step={{ job.video_key }}">← К видеолекции</a><span class="aq-eyebrow">ПОДГОТОВКА ТЕСТА</span><h1>От лекции к практике</h1><p>{{ job.draft.title }} · {{ job.asset.name }}</p></div><span class="aq-count">10 <small>вопросов</small></span></header>
+  <div class="studio-alert" id="aq-error" role="alert" hidden></div>
+  <div class="aq-work-status" id="aq-work-status" role="status" aria-live="polite"></div>
+  <div class="aq-review-grid">
+    <aside class="aq-source"><h2>Источник вопросов</h2><video id="aq-video" controls preload="metadata" src="{% url 'studio:asset' job.asset_id %}"></video><p>Проверяйте смысл вопроса и правильный ответ по лекции. Цитата помогает найти материал, но сама по себе не гарантирует корректность теста.</p><a class="button button--ghost" id="aq-transcript" href="{% url 'autoquiz:transcript' job.id %}" {% if not job.segments %}hidden{% endif %}>Скачать расшифровку SRT</a><p class="studio-caption">Ошибки распознавания можно исправить в SRT и загрузить файл через шаг видеолекции.</p></aside>
+    <main><form id="aq-review-form">{% csrf_token %}<div id="aq-questions"></div><div class="aq-review-actions" id="aq-review-actions" hidden>
+      <label class="aq-confirm"><input type="checkbox" id="aq-reviewed"> Я проверил вопросы, варианты ответов и объяснения</label>
+      <div class="studio-actions"><button type="button" class="button button--ghost" id="aq-save">Сохранить правки</button><button type="button" class="button button--primary" id="aq-apply">Добавить тест после видео</button></div><p class="studio-caption">Тест попадёт в черновик курса. Затем опубликуйте курс в редакторе.</p>
+    </div></form><button type="button" class="tree-add" id="aq-export" hidden>Скачать мои правки</button></main>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/autoquiz.js' %}" defer></script>{% endblock %}

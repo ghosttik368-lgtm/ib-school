@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% load static %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/studio.css' %}">{% endblock %}
+
+{% block title %}{{ lesson.title }} — {{ course.title }}{% endblock %}
+
+{% block content %}
+<div class="lesson-layout page-enter">
+    <main class="lesson-content">
+        <nav class="breadcrumbs" aria-label="Навигация">
+            <a href="{% url 'courses:library' %}">Библиотека</a><span>→</span><a href="{{ course.get_absolute_url }}">{{ course.title }}</a><span>→</span><span>{{ lesson.title }}</span>
+        </nav>
+        <header class="lesson-header">
+            <div>
+                <span class="eyebrow">Урок {{ lesson.order }}</span>
+                <h1>{{ lesson.title }}</h1>
+                <p>{{ lesson.summary|default:"Изучите материалы и закрепите знания." }}</p>
+            </div>
+            {% if progress.completed %}<span class="completed-badge">✓ Урок пройден</span>{% endif %}
+        </header>
+
+        {% if materials %}
+            <div class="material-stack">
+                {% for material in materials %}
+                    <section class="material-card material-card--{{ material.kind }}" id="material-{{ material.id }}">
+                        <header class="material-card__header">
+                            <span class="material-icon">
+                                {% if material.kind == 'video' %}▶{% elif material.kind == 'text' %}Aa{% elif material.kind == 'quiz' %}?{% elif material.kind == 'link' %}↗{% else %}↓{% endif %}
+                            </span>
+                            <div><small>{{ material.get_kind_display }}</small><h2>{{ material.title }}</h2></div>
+                        </header>
+
+                        {% if material.kind == 'text' %}
+                            <div class="article-content">{% if material.rich_text %}{{ material.text|safe }}{% else %}{{ material.text|linebreaks }}{% endif %}</div>
+                        {% elif material.kind == 'video' %}
+                            {% if material.file %}
+                                <video class="lesson-video" controls preload="metadata" src="{{ material.file.url }}">Ваш браузер не поддерживает видео.</video>
+                            {% endif %}
+                            {% if material.external_url %}
+                                <a class="file-row" href="{{ material.external_url }}" target="_blank" rel="noopener noreferrer"><span>Открыть видеолекцию</span><strong>↗</strong></a>
+                            {% endif %}
+                        {% elif material.kind == 'quiz' %}
+                            {% if material.quiz.questions.all %}
+                                <div class="quiz-intro">
+                                    <p>Проходной результат: {{ material.quiz.passing_score }}%. За первую успешную попытку — <strong>{{ material.quiz.points }} баллов</strong>.</p>
+                                    {% if material.latest_attempt %}
+                                        <span class="attempt-badge {% if material.latest_attempt.passed %}is-passed{% endif %}">Последняя попытка: {{ material.latest_attempt.score_percent }}%</span>
+                                    {% endif %}
+                                </div>
+                                <form class="quiz-form" method="post" action="{% url 'courses:submit_quiz' material.quiz.id %}">
+                                    {% csrf_token %}
+                                    {% for question in material.quiz.questions.all %}
+                                        <fieldset class="quiz-question">
+                                            <legend><span>{{ forloop.counter }}</span>{{ question.text }}</legend>
+                                            <div class="quiz-options">
+                                                {% if question.kind == 'short' %}<label>Ваш ответ<input type="text" name="question_{{ question.id }}" maxlength="500" required autocomplete="off"></label>{% else %}
+                                                {% for choice in question.choices.all %}
+                                                    <label class="quiz-option">
+                                                        <input type="{% if question.kind == 'multiple' %}checkbox{% else %}radio{% endif %}" name="question_{{ question.id }}" value="{{ choice.id }}" {% if question.kind != 'multiple' %}required{% endif %}>
+                                                        <span>{{ choice.text }}</span>
+                                                    </label>
+                                                {% endfor %}
+                                                {% endif %}
+                                            </div>
+                                        </fieldset>
+                                    {% endfor %}
+                                    <button class="button button--primary" type="submit">Проверить ответы</button>
+                                    {% if material.points_received %}<small class="quiz-form__note">Баллы за этот тест уже получены.</small>{% endif %}
+                                </form>
+                            {% else %}
+                                <p class="muted">Администратор ещё не добавил вопросы.</p>
+                            {% endif %}
+                        {% elif material.kind == 'pdf' %}
+                            {% if material.file %}<iframe src="{{ material.file.url }}" title="{{ material.title }}" class="pdf-viewer"></iframe><a href="{{ material.file.url }}" target="_blank" rel="noopener">Открыть PDF отдельно</a>{% endif %}
+                        {% elif material.kind == 'code' %}
+                            <div class="code-placeholder"><strong>Консоль программирования</strong><span>Модуль компилятора появится на следующем этапе разработки.</span></div>
+                        {% else %}
+                            {% if material.file %}
+                                <a class="file-row" href="{{ material.file.url }}" target="_blank"><span>{{ material.file.name }}</span><strong>Скачать ↓</strong></a>
+                            {% endif %}
+                            {% if material.external_url %}
+                                <a class="file-row" href="{{ material.external_url }}" target="_blank" rel="noopener noreferrer"><span>{{ material.external_url }}</span><strong>Открыть ↗</strong></a>
+                            {% endif %}
+                            {% if material.text %}<div class="article-content">{{ material.text|linebreaks }}</div>{% endif %}
+                        {% endif %}
+                    </section>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state"><h2>Материалы готовятся</h2><p>В этом уроке пока ничего не опубликовано.</p></div>
+        {% endif %}
+
+        <footer class="lesson-footer">
+            {% if previous_lesson %}<a class="button button--ghost" href="{% url 'courses:lesson_detail' previous_lesson.id %}">← Предыдущий</a>{% else %}<span></span>{% endif %}
+            {% if not has_quiz and not progress.completed %}
+                <form method="post" action="{% url 'courses:complete_lesson' lesson.id %}">{% csrf_token %}<button class="button button--primary" type="submit">Завершить урок</button></form>
+            {% elif next_lesson %}
+                <a class="button button--primary" href="{% url 'courses:lesson_detail' next_lesson.id %}">Следующий урок →</a>
+            {% else %}
+                <a class="button button--primary" href="{{ course.get_absolute_url }}">К программе курса</a>
+            {% endif %}
+        </footer>
+    </main>
+
+    <aside class="program-panel">
+        <div class="program-panel__head">
+            <span>Программа курса</span><strong>{{ enrollment.progress_percent }}%</strong>
+            <div class="progress-bar"><span style="width: {{ enrollment.progress_percent }}%"></span></div>
+        </div>
+        <div class="program-panel__lessons">
+            {% for item in course.modules.all %}
+                {% for course_lesson in item.lessons.all %}
+                    {% if course_lesson.is_active %}
+                        <a class="program-link {% if course_lesson.id == lesson.id %}is-active{% endif %}" href="{% url 'courses:lesson_detail' course_lesson.id %}">
+                            <span>{{ course_lesson.order }}</span><strong>{{ course_lesson.title }}</strong>
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </aside>
+</div>
+{% endblock %}

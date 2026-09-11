@@ -1,0 +1,18 @@
+# Only when an HTTPS proxy on this host forwards to 127.0.0.1:8080.
+:80 {
+    encode zstd gzip
+    request_body {
+        max_size 520MB
+    }
+    handle_path /static/* {
+        root * /srv/static
+        header Cache-Control "public, max-age=3600"
+        file_server
+    }
+    handle {
+        reverse_proxy web:8000 {
+            header_up X-Forwarded-Proto https
+            header_up X-IB-Client-IP {http.request.header.X-Real-IP}
+        }
+    }
+}

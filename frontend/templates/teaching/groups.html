@@ -1,0 +1,8 @@
+{% extends 'teaching/base.html' %}
+{% block heading %}Мои группы{% endblock %}
+{% block actions %}<a class="button button--ghost" href="?archive={% if archive %}0{% else %}1{% endif %}">{% if archive %}Активные группы{% else %}Показать архив{% endif %}</a>{% endblock %}
+{% block teaching_content %}
+<form class="teach-create" method="post" action="{% url 'teaching:create_group' %}">{% csrf_token %}<label for="group-title">Новая учебная группа</label><input id="group-title" name="title" maxlength="100" placeholder="Например, ИБ-21" required><button class="button button--primary" type="submit">Создать группу</button></form>
+<div class="teach-grid">{% for group in groups %}<a class="teach-card teach-group-card" href="{% url 'teaching:group' group.id %}"><span class="eyebrow">{% if group.archived %}Архив{% else %}Учебная группа{% endif %}</span><h2>{{ group.title }}</h2><p>{{ group.description|default:'Добавьте студентов и назначьте им курсы.'|truncatechars:110 }}</p><footer><span>{{ group.people }} студентов · {{ group.courses }} курсов</span><span aria-hidden="true">↗</span></footer>{% if user.is_platform_admin %}<small>Преподаватель: {{ group.owner.username }}</small>{% endif %}</a>{% empty %}<div class="teach-empty"><h2>Здесь будут ваши группы</h2><p>Создайте первую группу и добавьте зарегистрированных студентов.</p></div>{% endfor %}</div>
+{% include 'teaching/pagination.html' with page=groups %}
+{% endblock %}

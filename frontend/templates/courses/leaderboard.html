@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Рейтинг — ИБ{% endblock %}
+
+{% block content %}
+<div class="page-container page-enter">
+    <header class="page-heading">
+        <div><span class="eyebrow">Общий зачёт</span><h1>Рейтинг студентов</h1><p>Баллы начисляются один раз за каждый успешно пройденный тест.</p></div>
+        <div class="rating-mark">TOP</div>
+    </header>
+
+    {% if ranked_users %}
+        <section class="leaderboard-card">
+            <div class="leaderboard-row leaderboard-row--head"><span>Место</span><span>Студент</span><span>Курс обучения</span><span>Баллы</span><span></span></div>
+            {% for ranked_user in ranked_users %}
+                <button class="leaderboard-row {% if ranked_user.id == user.id %}is-current{% endif %}" type="button" data-modal-open="student-{{ ranked_user.id }}">
+                    <span class="rank rank--{{ ranked_user.rank }}">{% if ranked_user.rank == 1 %}✦{% else %}{{ ranked_user.rank }}{% endif %}</span>
+                    <span class="student-cell"><i>{{ ranked_user.username|first|upper }}</i><span><strong>{{ ranked_user.display_name }}</strong><small>@{{ ranked_user.username }}{% if ranked_user.id == user.id %} · это вы{% endif %}</small></span></span>
+                    <span>{% if ranked_user.study_year %}{{ ranked_user.get_study_year_display }}{% else %}—{% endif %}</span>
+                    <strong class="points-cell">{{ ranked_user.total_points }}</strong>
+                    <span class="row-arrow">→</span>
+                </button>
+
+                <dialog class="student-modal" id="student-{{ ranked_user.id }}">
+                    <div class="student-modal__top">
+                        <span class="student-modal__avatar">{{ ranked_user.username|first|upper }}</span>
+                        <div><span class="eyebrow">Место №{{ ranked_user.rank }}</span><h2>{{ ranked_user.display_name }}</h2><p>@{{ ranked_user.username }} · {% if ranked_user.study_year %}{{ ranked_user.get_study_year_display }}{% else %}студент{% endif %}</p></div>
+                        <button class="dialog-close" type="button" data-modal-close aria-label="Закрыть">×</button>
+                    </div>
+                    <div class="student-modal__score"><span>Всего баллов</span><strong>{{ ranked_user.total_points }}</strong></div>
+                    <h3>Курсы и результаты</h3>
+                    {% if ranked_user.course_details %}
+                        <div class="modal-course-list">
+                            {% for detail in ranked_user.course_details %}
+                                <div class="modal-course">
+                                    <div><strong>{{ detail.course.title }}</strong><span>{{ detail.points }} баллов</span></div>
+                                    <div class="course-progress__row"><small>Пройдено</small><b>{{ detail.progress }}%</b></div>
+                                    <div class="progress-bar"><span style="width: {{ detail.progress }}%"></span></div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}<p class="muted">Пользователь пока не добавил курсы.</p>{% endif %}
+                    {% if ranked_user.achievements.all %}<p class="student-modal__achievements">Достижений: <strong>{{ ranked_user.achievements.all|length }}</strong></p>{% endif %}
+                </dialog>
+            {% endfor %}
+        </section>
+    {% else %}
+        <div class="empty-state empty-state--large"><h2>Рейтинг пока пуст</h2><p>Первый зарегистрированный студент появится здесь.</p></div>
+    {% endif %}
+</div>
+{% endblock %}
+

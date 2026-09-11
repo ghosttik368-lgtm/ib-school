@@ -1,0 +1,20 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}{{ lesson.title }} — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/learning.css' %}">{% endblock %}
+{% block content %}
+<div class="page-container page-enter learning-page">
+  <nav class="breadcrumbs"><a href="{{ course.get_absolute_url }}">{{ course.title }}</a><span>→</span><span>{{ lesson.title }}</span></nav>
+  <header class="page-heading"><div><span class="eyebrow">Урок {{ lesson.order }}</span><h1>{{ lesson.title }}</h1><p>{{ lesson.summary }}</p></div><span class="learning-progress">{{ enrollment.progress_percent }}% курса</span></header>
+  <p class="learning-note">За каждый пройденный блок — 1 балл. Время открытия и отправки, попытки и результаты сохраняются для учебной аналитики преподавателя.</p>
+  <div class="learning-blocks">
+  {% for material in materials %}
+    <section class="learning-block-row {% if material.done %}learning-done{% endif %}">
+      <span class="learning-number">{% if material.done %}✓{% else %}{{ forloop.counter|stringformat:'02d' }}{% endif %}</span>
+      <div><small>{{ material.get_kind_display }}</small><h2>{{ material.title }}</h2><span>{% if material.done %}Пройден · +1 балл{% else %}1 балл{% endif %}</span></div>
+      <form action="{% url 'learning:start' material.id %}" method="post">{% csrf_token %}<button class="button {% if material.done %}button--ghost{% else %}button--primary{% endif %}">{% if material.done %}Повторить{% else %}Открыть блок{% endif %}</button></form>
+    </section>
+  {% empty %}<p>В этом уроке пока нет блоков.</p>{% endfor %}
+  </div>
+  <a class="button button--ghost" href="{{ course.get_absolute_url }}">К программе курса</a>
+</div>
+{% endblock %}

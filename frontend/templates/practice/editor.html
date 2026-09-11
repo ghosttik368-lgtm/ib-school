@@ -1,0 +1,17 @@
+{% if task %}
+<div id="practice-editor" data-submit="{% url 'practice:submit' material.id %}" data-history="{% url 'practice:history' material.id %}">
+  <div class="task-brief"><span class="tag tag--green">C++20</span><span>{{ task.time_limit }} с на тест · {{ task.memory_limit }} МБ</span></div>
+  <div class="article-content">{{ task.statement|linebreaks }}</div>
+  {% if task.input_format %}<h3>Входные данные</h3><p class="task-text">{{ task.input_format }}</p>{% endif %}
+  {% if task.output_format %}<h3>Выходные данные</h3><p class="task-text">{{ task.output_format }}</p>{% endif %}
+  {% if task.examples %}<h3>Примеры</h3><pre class="task-output">{{ task.examples }}</pre>{% endif %}
+  <div class="code-toolbar"><strong>Решение</strong><span id="code-status" role="status">Черновик загружен</span><button type="button" id="code-save" class="button button--ghost">Сохранить</button><button type="button" id="code-download" class="button button--ghost">Скачать .cpp</button></div>
+  <label class="sr-only" for="source-code">Код C++20</label><textarea id="source-code" class="source-code" spellcheck="false" autocapitalize="off" autocomplete="off" rows="18" maxlength="100000" aria-describedby="code-help"></textarea>
+  <small id="code-help">Tab — отступ, Ctrl+S — сохранить. Код сохраняется автоматически.</small>
+  <label class="stdin-label" for="program-input">Свой ввод для пробного запуска</label><textarea id="program-input" class="program-input" rows="4" maxlength="10000" spellcheck="false"></textarea>
+  <div class="code-toolbar"><button id="code-run" type="button" class="button button--ghost">Запустить на своём вводе</button><button id="code-check" type="button" class="button button--primary">Отправить на проверку</button><span id="runner-state" role="status"></span></div>
+  <p id="practice-result" role="status">Пробный запуск не начисляет баллы. Проверка использует скрытые тесты; пробелы между словами и числами в выводе несущественны.</p>
+  <pre id="program-output" class="task-output" hidden></pre>
+  <h3>История отправок</h3><div id="submission-list"></div><div class="code-toolbar"><button id="history-prev" class="button button--ghost" type="button">←</button><span id="history-page"></span><button id="history-next" class="button button--ghost" type="button">→</button></div>
+</div>
+{% else %}<p>Для этого старого блока ещё не настроена задача. Преподаватель может создать её в новой версии курса.</p>{% endif %}

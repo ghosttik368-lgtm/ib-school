@@ -1,0 +1,7 @@
+document.addEventListener('DOMContentLoaded',()=>{
+document.querySelectorAll('form[data-submit-state]').forEach(form=>form.addEventListener('submit',event=>{if(form.dataset.busy==='1'){event.preventDefault();return;}if(!form.checkValidity())return;form.dataset.busy='1';form.setAttribute('aria-busy','true');if(event.submitter){event.submitter.dataset.originalLabel=event.submitter.textContent;event.submitter.textContent='Подождите…';}}));
+window.addEventListener('pageshow',()=>document.querySelectorAll('form[data-submit-state]').forEach(form=>{delete form.dataset.busy;form.removeAttribute('aria-busy');form.querySelectorAll('[data-original-label]').forEach(b=>b.textContent=b.dataset.originalLabel);}));
+document.querySelectorAll('[data-copy-target]').forEach(b=>b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(document.getElementById(b.dataset.copyTarget).textContent.trim());b.textContent='Скопировано';}catch{b.textContent='Выделите код и нажмите Ctrl+C';}}));
+document.querySelector('[data-download-codes]')?.addEventListener('click',()=>{const t=[...document.querySelectorAll('#recovery-values code')].map(e=>e.textContent).join('\n');const u=URL.createObjectURL(new Blob([t],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=u;a.download='ib-recovery-codes.txt';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);});
+document.querySelector('[data-open-demo]')?.addEventListener('click',()=>document.getElementById('component-demo').showModal());
+});

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}{% load static %}
+{% block title %}{% if private %}Аналитика прохождения{% else %}Рейтинг{% endif %} — ИБ{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/learning.css' %}">{% endblock %}
+{% block content %}
+<div class="page-container page-enter" id="live-rating" data-private="{{ private|yesno:'true,false' }}" data-endpoint="{% if private %}{% url 'learning:private_data' %}{% else %}{% url 'learning:public_data' %}{% endif %}">
+  <header class="page-heading"><div><span class="eyebrow">{% if private %}Кабинет преподавателя{% else %}Общий зачёт{% endif %}</span><h1>{% if private %}Аналитика прохождения{% else %}Рейтинг студентов{% endif %}</h1><p>{% if private %}Предварительные отметки по блокам. Выводы о нарушении — после проверки.{% else %}Каждый пройденный блок — 1 балл.{% endif %}</p></div>{% if user.can_manage_courses %}<a class="button button--ghost" href="{% if private %}{% url 'courses:leaderboard' %}{% else %}{% url 'learning:analytics' %}{% endif %}">{% if private %}Публичный рейтинг{% else %}Аналитика{% endif %}</a>{% endif %}</header>
+  <div class="learning-filters"><label>Направление<select id="rating-direction"><option value="">Все направления</option>{% for direction in directions %}<option value="{{ direction.id }}">{{ direction.name }}</option>{% endfor %}</select></label><label>Курс<select id="rating-course"><option value="">Все курсы</option>{% for course in courses %}<option value="{{ course.id }}" data-direction="{{ course.direction_id }}">{{ course.title }} · #{{ course.id }}</option>{% endfor %}</select></label><span id="rating-status" role="status">Загружаем результаты…</span></div>
+  {% if private %}<div class="learning-legend"><span class="zone-green">Зелёная: ≤33%</span><span class="zone-orange">Оранжевая: >33–66%</span><span class="zone-red">Красная: >66%</span><span>Доля отрицательных среди оценённых блоков. «Нет данных» исключено.</span></div>{% endif %}
+  <div class="learning-table-wrap"><table class="learning-table"><thead><tr><th>Место</th><th>Никнейм</th><th>Баллы / блоки</th>{% if private %}<th>Положительные</th><th>Отрицательные</th><th>Нет данных</th><th>Доля / зона</th>{% else %}<th>Курс обучения</th>{% endif %}</tr></thead><tbody id="rating-rows"></tbody></table></div>
+  <div class="learning-pagination"><button class="button button--ghost" id="rating-prev">← Назад</button><span id="rating-page"></span><button class="button button--ghost" id="rating-next">Далее →</button></div>
+  <noscript>Включите JavaScript для автоматического обновления рейтинга.</noscript>
+  <dialog class="learning-dialog" id="rating-detail"><div class="learning-dialog-head"><h2 id="detail-title">Результаты</h2><button type="button" class="button button--ghost" id="detail-close" aria-label="Закрыть">Закрыть</button></div><div id="detail-body" aria-live="polite"></div></dialog>
+  <form hidden id="rating-csrf">{% csrf_token %}</form>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/learning-rating.js' %}" defer></script>{% endblock %}

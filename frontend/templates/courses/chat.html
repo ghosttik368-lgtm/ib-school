@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Чат — ИБ{% endblock %}
+
+{% block content %}
+<div class="chat-page page-enter">
+    <header class="chat-header"><div><span class="eyebrow">Обучающая платформа</span><h1>Общий чат</h1><p>Обсуждайте курсы и помогайте друг другу.</p></div><span class="online-dot">● доступен</span></header>
+    <section class="chat-window" data-chat-window>
+        {% if chat_messages %}
+            {% for chat_message in chat_messages %}
+                <article class="chat-message {% if chat_message.user_id == user.id %}is-own{% endif %}">
+                    <span class="chat-message__avatar">{{ chat_message.user.username|first|upper }}</span>
+                    <div><header><strong>{{ chat_message.user.display_name }}</strong><time>{{ chat_message.created_at|date:"d.m, H:i" }}</time></header><p>{{ chat_message.text|linebreaksbr }}</p></div>
+                </article>
+            {% endfor %}
+        {% else %}<div class="empty-state"><h2>Начните разговор</h2><p>Здесь ещё нет сообщений.</p></div>{% endif %}
+    </section>
+    <form class="chat-composer" method="post">
+        {% csrf_token %}
+        {{ form.text }}
+        <button class="button button--primary" type="submit">Отправить</button>
+    </form>
+</div>
+{% endblock %}
