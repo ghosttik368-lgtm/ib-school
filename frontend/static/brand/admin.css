@@ -1,0 +1,21 @@
+/* Keep Django admin behaviour and its light/dark theme controls intact. */
+html[data-theme='light'], :root {
+    --primary: #2a3f5f; --secondary: #2a3f5f; --accent: #e6bd75;
+    --header-bg: #2a3f5f; --header-color: #e6bd75; --header-link-color: #fff;
+    --breadcrumbs-bg: #edf0f4; --breadcrumbs-fg: #4d5c70; --breadcrumbs-link-fg: #2a3f5f;
+    --link-fg: #2a3f5f; --link-hover-color: #1b2c44; --link-selected-fg: #2a3f5f;
+    --button-bg: #2a3f5f; --button-hover-bg: #1b2c44;
+    --default-button-bg: #2a3f5f; --default-button-hover-bg: #1b2c44;
+    --selected-bg: #edf0f4; --selected-row: #faf3e7;
+    --font-family-primary: 'IB Montserrat', 'Segoe UI', sans-serif;
+}
+html[data-theme='dark'] { --primary: #a4aebe; --link-fg: #e6bd75; --link-hover-color: #f3deba; --link-selected-fg: #e6bd75; --selected-bg: #29374a; --selected-row: #29374a; --breadcrumbs-bg: #22334d; --breadcrumbs-fg: #e1e5ec; --breadcrumbs-link-fg: #e6bd75; }
+body { font-family: 'IB Montserrat', 'Segoe UI', sans-serif; }
+h1,h2,h3, #site-name { font-family: 'IB Magistral', 'IB Montserrat', sans-serif; font-weight: 500; }
+#header { border-bottom: 3px solid #e6bd75; }
+.ib-admin-brand { display: flex; align-items: center; gap: 12px; font-size: 28px; }
+.ib-admin-brand img { width: 62px; height: auto; padding: 8px; }
+.ib-admin-brand small { display: block; font-family: 'IB Montserrat', sans-serif; font-size: 11px; margin-top: 3px; color: #e1e5ec; }
+input,textarea,select,button { font-family: inherit; }
+:focus-visible { outline: 3px solid #a4aebe; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }

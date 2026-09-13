@@ -1,0 +1,9 @@
+{% extends 'admin/base_site.html' %}
+{% load static %}
+{% block title %}{{ title }} | ИБ — администрирование{% endblock %}
+{% block extrastyle %}{{ block.super }}
+<link rel="icon" type="image/png" href="{% static 'brand/logo-black.png' %}">
+<link rel="stylesheet" href="{% static 'brand/fonts.css' %}?v=20260913-1">
+<link rel="stylesheet" href="{% static 'brand/admin.css' %}?v=20260913-1">
+{% endblock %}
+{% block branding %}<div id="site-name"><a class="ib-admin-brand" href="{% url 'admin:index' %}"><img src="{% static 'brand/logo-white.png' %}" width="521" height="488" alt="Логотип академии"><span>ИБ<small>Управление платформой</small></span></a></div>{% endblock %}

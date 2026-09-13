@@ -25,7 +25,7 @@
                 </form>
             {% endif %}
             <button class="button button--primary button--create" type="button" data-dialog-open="course-wizard">
-                <span>＋</span> Создать курс
+                <span>+</span> Создать курс
             </button>
         </div>
     </header>
@@ -88,7 +88,7 @@
                     </div>
                     <form action="{% url 'courses:lesson_create' selected_course.id %}" method="post">
                         {% csrf_token %}
-                        <button class="add-lesson-button" type="submit"><span>＋</span> Добавить урок</button>
+                        <button class="add-lesson-button" type="submit"><span>+</span> Добавить урок</button>
                     </form>
                 </aside>
 
@@ -105,7 +105,7 @@
                         </div>
 
                         <section class="materials-section">
-                            <div class="materials-section__head"><div><h3>Содержимое урока</h3><p>Видео, статьи, файлы, ссылки и проверка знаний.</p></div><button class="button button--primary" type="button" data-dialog-open="material-create">＋ Добавить материал</button></div>
+                            <div class="materials-section__head"><div><h3>Содержимое урока</h3><p>Видео, статьи, файлы, ссылки и проверка знаний.</p></div><button class="button button--primary" type="button" data-dialog-open="material-create">+ Добавить материал</button></div>
 
                             {% if selected_lesson.materials.all %}
                                 <div class="admin-materials">
@@ -123,7 +123,7 @@
 
                                             {% if material.kind == 'quiz' %}
                                                 <div class="question-builder">
-                                                    <div class="question-builder__head"><span>Вопросы теста</span><button type="button" data-dialog-open="question-{{ material.id }}">＋ Добавить вопрос</button></div>
+                                                    <div class="question-builder__head"><span>Вопросы теста</span><button type="button" data-dialog-open="question-{{ material.id }}">+ Добавить вопрос</button></div>
                                                     <div class="question-list">
                                                         {% for question in material.quiz.questions.all %}
                                                             <div class="question-item">
@@ -168,7 +168,7 @@
                                     {% endfor %}
                                 </div>
                             {% else %}
-                                <div class="materials-empty"><span>＋</span><h3>Урок пока пуст</h3><p>Добавьте первый материал — например, видеолекцию или статью.</p><button class="button button--soft" type="button" data-dialog-open="material-create">Добавить материал</button></div>
+                                <div class="materials-empty"><span>+</span><h3>Урок пока пуст</h3><p>Добавьте первый материал — например, видеолекцию или статью.</p><button class="button button--soft" type="button" data-dialog-open="material-create">Добавить материал</button></div>
                             {% endif %}
 
                             <article class="compiler-placeholder"><span>&lt;/&gt;</span><div><small>Следующий этап</small><strong>Консоль программирования</strong><p>Интерфейс уже зарезервирован. Компиляторы и изолированный запуск кода подключим отдельно.</p></div><em>Скоро</em></article>
@@ -176,7 +176,7 @@
                     {% else %}
                         <div class="lesson-editor__welcome">
                             <span>↙</span><h2>{% if lessons %}Выберите урок{% else %}Добавьте первый урок{% endif %}</h2><p>{% if lessons %}Нажмите на урок слева, чтобы заполнить его материалами.{% else %}Он автоматически получит название «Урок 1». Затем вы сможете изменить название и добавить содержимое.{% endif %}</p>
-                            {% if not lessons %}<form action="{% url 'courses:lesson_create' selected_course.id %}" method="post">{% csrf_token %}<button class="button button--primary" type="submit">＋ Добавить урок</button></form>{% endif %}
+                            {% if not lessons %}<form action="{% url 'courses:lesson_create' selected_course.id %}" method="post">{% csrf_token %}<button class="button button--primary" type="submit">+ Добавить урок</button></form>{% endif %}
                         </div>
                     {% endif %}
                 </div>
@@ -281,3 +281,4 @@
 {% endblock %}
 
 {% block extra_js %}<script src="{% static 'js/management.js' %}"></script>{% endblock %}
+

@@ -69,3 +69,13 @@ _old*/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Issued accounts and offline transport bundles are private artifacts.
+private/
+IB_ACCOUNTS*/
+IB_USB*/
+accounts.json
+credentials*.csv
+credentials*.json
+passwords*.txt
+usb-manifest.json

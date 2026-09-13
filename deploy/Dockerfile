@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM docker:29-cli AS dockercli
 FROM python:3.12-slim-bookworm AS base
+ARG IB_SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=$IB_SOURCE_REVISION
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=config.container_settings PYTHONPATH=/app/backend \
     HOME=/home/app

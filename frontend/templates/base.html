@@ -10,8 +10,10 @@
     {% block extra_css %}{% endblock %}
 <link rel="stylesheet" href="{% static 'css/foundation.css' %}">
 <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+    {% include 'includes/brand_head.html' %}
 </head>
-<body>
+<body class="brand-theme">
+    <a class="skip-link" href="#main-content">Перейти к содержимому</a>
     <aside class="sidebar">
         <nav class="sidebar__nav" aria-label="Разделы платформы">
             <a class="sidebar__link {% if active_section == 'courses' %}is-active{% endif %}" href="{% url 'home' %}" title="Доступные курсы" aria-label="Доступные курсы">
@@ -39,10 +41,8 @@
 
     <header class="topbar">
         <a class="brand" href="{% url 'home' %}" aria-label="ИБ — главная">
-            <span class="brand__mark">
-                <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 39 10v11c0 10-6 18-15 23C15 39 9 31 9 21V10L24 4Z"/><path d="M18 14v17M24 12v22M30 14v17"/><path d="M5 15h5M4 21h5M5 27h5M38 15h5M39 21h5M38 27h5"/></svg>
-            </span>
-            <span class="brand__name">ИБ</span>
+            <span class="brand__mark"><img src="{% static 'brand/logo-black.png' %}" width="521" height="488" alt="Логотип Военно-космической академии имени А. Ф. Можайского"></span>
+            <span class="brand__identity"><span class="brand__name">ИБ</span><span class="brand__caption">Обучающая платформа</span></span>
         </a>
 
         <nav class="topnav" aria-label="Основные разделы">
@@ -77,7 +77,7 @@
         </div>
     </header>
 
-    <main class="workspace">
+    <main class="workspace" id="main-content" tabindex="-1">
         {% if messages %}
             <div class="toast-stack" aria-live="polite">
                 {% for message in messages %}

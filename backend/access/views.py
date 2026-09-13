@@ -184,6 +184,8 @@ def change_password(request):
     form = PasswordChangeForm(request.user, request.POST if request.method == 'POST' else None)
     if request.method == 'POST' and form.is_valid():
         form.save()
+        request.user.must_change_password = False
+        request.user.save(update_fields=['must_change_password'])
         audit('Пароль изменён', actor=request.user)
         logout(request)
         messages.success(request, 'Пароль изменён. Войдите заново.')

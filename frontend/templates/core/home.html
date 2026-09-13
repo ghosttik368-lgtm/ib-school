@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}Курсы — ИБ{% endblock %}
 
@@ -7,15 +8,17 @@
     <section class="hero-banner">
         <div class="hero-banner__content">
             <span class="hero-banner__badge">Онлайн-обучение</span>
-            <h1>Обучающая платформа</h1>
+            <h1>Обучающая<br><span>платформа</span></h1>
             <p>Изучайте дисциплины в своём темпе и подтверждайте знания тестами.</p>
+            <a class="hero-catalog-link" href="#course-catalog">Перейти к курсам <span aria-hidden="true">↗</span></a>
         </div>
-        <div class="hero-banner__emblem" aria-hidden="true">
-            <span></span><span></span><span></span><span></span><span></span>
+        <div class="hero-brand">
+            <img src="{% static 'brand/logo-white.png' %}" width="521" height="488" alt="Логотип академии">
+            <p>Военно-космическая академия<br>имени А. Ф. Можайского</p>
         </div>
     </section>
 
-    <section class="catalog-toolbar" aria-label="Фильтры курсов">
+    <section class="catalog-toolbar" id="course-catalog" aria-label="Фильтры курсов">
         <div class="filter-pills" data-course-filters>
             <button class="filter-pill is-active" type="button" data-direction="all">Все курсы</button>
             {% for direction in directions %}
@@ -24,7 +27,7 @@
         </div>
         <label class="search-field">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.5 16.5 4 4"/></svg>
-            <input type="search" placeholder="Поиск по курсам и направлениям" data-course-search>
+            <input type="search" aria-label="Поиск по курсам и направлениям" placeholder="Поиск по курсам и направлениям" data-course-search>
         </label>
     </section>
 
@@ -62,13 +65,13 @@
             {% endfor %}
         </section>
         <div class="empty-state is-hidden" data-course-empty>
-            <span class="empty-state__icon">⌕</span>
+            <span class="empty-state__icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg></span>
             <h2>Ничего не найдено</h2>
             <p>Попробуйте изменить запрос или выбрать другое направление.</p>
         </div>
     {% else %}
         <section class="empty-state empty-state--large">
-            <span class="empty-state__icon">＋</span>
+            <span class="empty-state__icon" aria-hidden="true">+</span>
             <h2>Опубликованных курсов пока нет</h2>
             <p>Когда администратор наполнит и опубликует первый курс, он появится здесь.</p>
             {% if user.can_manage_courses %}

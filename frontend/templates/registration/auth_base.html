@@ -7,25 +7,25 @@
     <title>{% block title %}ИБ{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
 <link rel="stylesheet" href="{% static 'css/foundation.css' %}">
+    {% include 'includes/brand_head.html' %}
 </head>
-<body class="auth-body">
+<body class="auth-body brand-theme">
     <div class="auth-shell">
         <section class="auth-visual">
             <a class="auth-brand" href="{% url 'login' %}">
-                <span class="brand__mark">
-                    <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4 39 10v11c0 10-6 18-15 23C15 39 9 31 9 21V10L24 4Z"/><path d="M18 14v17M24 12v22M30 14v17"/></svg>
-                </span>
-                <strong>ИБ</strong>
+                <span class="brand__mark"><img src="{% static 'brand/logo-white.png' %}" width="521" height="488" alt="Логотип академии"></span>
+                <span class="brand__identity"><strong class="brand__name">ИБ</strong><span class="brand__caption">Обучающая платформа</span></span>
             </a>
             <div class="auth-visual__copy">
                 <span class="eyebrow eyebrow--light">Обучающая платформа</span>
-                <h1>Разобраться.<br>Попробовать.<br>Научиться.</h1>
-                <p>Курсы, практика, тесты и честный рейтинг знаний в одном месте.</p>
+                <h1>Знания.<br>Практика.<br><span>Новые высоты.</span></h1>
+                <p>Изучайте информационную безопасность, решайте задачи и следите за своим прогрессом.</p>
             </div>
-            <div class="auth-visual__grid" aria-hidden="true"></div>
+            <p class="auth-institution">Военно-космическая академия<br>имени А. Ф. Можайского</p>
         </section>
         <section class="auth-panel">
             <div class="auth-card">
+                <a class="auth-mobile-brand" href="{% url 'login' %}"><img src="{% static 'brand/logo-black.png' %}" width="521" height="488" alt="Логотип академии"><span>ИБ<small>Обучающая платформа</small></span></a>
                 {% for message in messages %}<div class="notice">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}
             </div>
         </section>

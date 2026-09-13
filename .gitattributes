@@ -1,4 +1,8 @@
-* text=auto
+* text=auto eol=lf
+*.cmd text eol=lf
+*.png binary
+*.ttf binary
+*.otf binary
 *.py text eol=lf
 *.sh text eol=lf
 *.yaml text eol=lf

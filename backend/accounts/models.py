@@ -31,6 +31,7 @@ class User(AbstractUser):
     )
     study_group = models.CharField("Учебная группа", max_length=40, blank=True)
     department = models.CharField("Кафедра", max_length=160, blank=True)
+    must_change_password = models.BooleanField("Сменить выданный пароль при входе", default=False, db_default=False)
     avatar = models.ImageField("Аватар", upload_to="avatars/", blank=True, null=True)
 
     class Meta:

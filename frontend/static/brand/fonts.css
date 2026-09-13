@@ -1,0 +1,9 @@
+/* Original supplied font files; no CDN and no third-party requests. */
+@font-face { font-family: 'IB Montserrat'; src: url('fonts/Montserrat-Regular.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'IB Montserrat'; src: url('fonts/Montserrat-Medium.ttf') format('truetype'); font-style: normal; font-weight: 500; font-display: swap; }
+@font-face { font-family: 'IB Montserrat'; src: url('fonts/Montserrat-SemiBold.ttf') format('truetype'); font-style: normal; font-weight: 600; font-display: swap; }
+@font-face { font-family: 'IB Montserrat'; src: url('fonts/Montserrat-Bold.ttf') format('truetype'); font-style: normal; font-weight: 700 900; font-display: swap; }
+@font-face { font-family: 'IB Montserrat'; src: url('fonts/Montserrat-Italic.ttf') format('truetype'); font-style: italic; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'IB Magistral'; src: url('fonts/Magistral-Book.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'IB Magistral'; src: url('fonts/Magistral-Medium.ttf') format('truetype'); font-style: normal; font-weight: 500 600; font-display: swap; }
+@font-face { font-family: 'IB Magistral'; src: url('fonts/Magistral-Bold.ttf') format('truetype'); font-style: normal; font-weight: 700 900; font-display: swap; }

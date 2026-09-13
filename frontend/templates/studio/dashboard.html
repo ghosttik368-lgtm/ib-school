@@ -2,7 +2,7 @@
 {% block title %}Управление курсами — ИБ{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{% static 'css/studio.css' %}">{% endblock %}
 {% block content %}<div class="page-container studio-dashboard">
-<header class="studio-heading"><div><span class="eyebrow">Преподавательская</span><h1>Мои курсы</h1></div><button class="button button--primary" id="create-course">＋ Создать курс</button></header>
+<header class="studio-heading"><div><span class="eyebrow">Преподавательская</span><h1>Мои курсы</h1></div><button class="button button--primary" id="create-course">+ Создать курс</button></header>
 <p class="studio-caption">Черновики, опубликованные программы и архив.</p><div id="dashboard-error" role="alert"></div>
 {% csrf_token %}<div class="draft-grid">{% for draft in drafts %}
 <a href="{% url 'studio:editor' draft.pk %}" class="draft-card">
@@ -10,3 +10,4 @@
 <div class="draft-card-body"><span class="studio-badge">{% if draft.archived %}Архив{% elif not draft.latest_course %}Черновик{% elif draft.revision != draft.published_revision %}Есть новые правки{% else %}Опубликован{% endif %}</span><h2>{{ draft.title }}</h2><p>{{ draft.data.summary|default:'Добавьте описание и материалы курса.' }}</p><footer>Изменён {{ draft.updated_at|date:'d.m.Y H:i' }} <span>Открыть →</span></footer></div></a>
 {% empty %}<div class="studio-empty"><h2>Здесь начинается ваш первый курс</h2><p>Выберите направление, назовите курс и добавьте первый урок.</p></div>{% endfor %}</div></div>{% endblock %}
 {% block extra_js %}<script src="{% static 'js/studio.js' %}" defer></script>{% endblock %}
+
