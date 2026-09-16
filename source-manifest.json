@@ -4,7 +4,7 @@
     ".dockerignore": "6b64fc955867cde90a5cc634fae47736bf811c284bec678eebb16bda5cc616e8",
     ".env.deploy.example": "51f930601463a84365a93459f571e12c1341ef008af9c18fb554b44878833ad1",
     ".gitattributes": "9b5c9fd6af907955e6a93871ab4e37d6c719dab1bf3e79063f2b49444ae23b37",
-    ".github/workflows/verify.yml": "c9ee9a6b09cf4acbbc30649e2c165cfd0198a9d116af6bd5b9a9f885f8f1afe4",
+    ".github/workflows/verify.yml": "85a3051421134ca69e939038e60b3e963193ea6be5bf57f29f3f6d955103a081",
     ".gitignore": "6756f299450d069f67c230ad5cbeecc921f8bc81b4f5714b28fbb0f5e89c94db",
     "DEPLOY_GUIDE_RU.md": "b0f6083774e2b377447409f1ed5e3a255bc59a5338fd6f994e5ee955b9da7562",
     "README.md": "b75928d35d1ef2bc4f5bb5dd126bee1b76d2054e44afb1f79ee8bb4ae2d87b5e",
