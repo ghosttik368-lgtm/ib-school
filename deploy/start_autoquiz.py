@@ -8,6 +8,9 @@ django.setup()
 from django.conf import settings
 from autoquiz import ollama
 
+if not settings.AUTOQUIZ_ENABLED:
+    sys.exit('AI disabled: AUTOQUIZ_ENABLED=0. No model loading or queue processing.')
+
 while True:
     try:
         folder = settings.AUTOQUIZ_MODEL_DIR / settings.AUTOQUIZ_WHISPER

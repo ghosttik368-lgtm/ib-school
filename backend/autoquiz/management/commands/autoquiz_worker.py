@@ -1,4 +1,5 @@
 import time
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from autoquiz.worker import Heartbeat, acquire, claim, process
 
@@ -10,6 +11,8 @@ class Command(BaseCommand):
         parser.add_argument('--once', action='store_true', help='Обработать одно видео и завершиться')
 
     def handle(self, *args, **options):
+        if not settings.AUTOQUIZ_ENABLED:
+            raise CommandError('AI отключён: AUTOQUIZ_ENABLED=0. Очередь не обрабатывается.')
         token = acquire()
         if not token:
             raise CommandError('Обработчик уже запущен. Если он аварийно закрыт, подождите минуту.')

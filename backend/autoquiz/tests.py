@@ -44,7 +44,7 @@ def question_data():
         'correct': 0, 'explanation': 'Это объясняется в данном фрагменте лекции.', 'segment': i, 'quote': topic} for i, topic in enumerate(TOPICS)], transcript_data())
 
 
-@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'], DEV_DISABLE_MFA=True)
+@override_settings(PASSWORD_HASHERS=['django.contrib.auth.hashers.MD5PasswordHasher'], DEV_DISABLE_MFA=True, AUTOQUIZ_ENABLED=True)
 class AutoquizTests(TestCase):
     def setUp(self):
         self.teacher = User.objects.create_user('author', password='valid', role='teacher')
@@ -114,6 +114,36 @@ class AutoquizTests(TestCase):
         self.client.post(url, json.dumps({'revision': self.draft.revision, 'data': self.draft.data}), content_type='application/json')
         self.assertEqual(Generation.objects.count(), 1)
         self.assertEqual(Course.objects.count(), 0)
+
+    @override_settings(AUTOQUIZ_ENABLED=False)
+    def test_disabled_ai_does_not_queue_on_save_or_api(self):
+        response = self.client.post(reverse('studio:data', args=[self.draft.pk]), json.dumps({'revision': self.draft.revision, 'data': self.draft.data}), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Generation.objects.count(), 0)
+        response = self.post('queue', {'video': self.video_key}, pk=self.draft.pk)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(Generation.objects.count(), 0)
+        with self.assertRaises(ValidationError):
+            queue_video(self.draft.pk, self.video_key, self.teacher)
+        self.assertContains(self.client.get(reverse('studio:editor', args=[self.draft.pk])), 'data-ai-enabled="0"')
+
+    def test_ready_test_can_be_published_with_ai_disabled(self):
+        self.approved()
+        with override_settings(AUTOQUIZ_ENABLED=False):
+            with self.assertRaises(ValidationError):
+                action(self.job.pk, self.job.revision, 'regenerate', 0)
+            self.draft, key = apply_result(self.job.pk, self.job.revision, self.draft.revision)
+            course = publish(self.draft)
+            self.assertTrue(Quiz.objects.filter(material__lesson__module__course=course).exists())
+
+    @override_settings(AUTOQUIZ_ENABLED=False)
+    def test_worker_refuses_disabled_ai_without_claiming_jobs(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+        with patch('autoquiz.management.commands.autoquiz_worker.acquire') as acquire:
+            with self.assertRaises(CommandError):
+                call_command('autoquiz_worker', once=True)
+            acquire.assert_not_called()
 
     def test_manual_queue_is_idempotent(self):
         first = self.queue()

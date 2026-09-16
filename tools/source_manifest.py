@@ -8,7 +8,7 @@ DIRS = ('backend', 'frontend', 'tools', 'deploy', 'runner', 'docs', '.github')
 EXCLUDED_PARTS = {'__pycache__', 'media', 'staticfiles', 'secrets', 'private', 'backups', 'transfer', '.git', 'node_modules', '.venv', 'venv'}
 SUFFIXES = {'.py', '.html', '.css', '.js', '.svg', '.png', '.jpg', '.ico', '.ttf', '.otf', '.woff', '.woff2', '.txt', '.md', '.json', '.yaml', '.yml', '.sh', '.ps1', '.cmd'}
 NAMES = {'Dockerfile', 'Caddyfile', 'Caddyfile.behind-proxy', '.gitkeep', '.gitignore', '.dockerignore', '.gitattributes', '.env.example', '.env.deploy.example'}
-ROOT_NAMES = {'README.md', 'START.txt', 'START.cmd', 'compose.yaml', 'compose.local.yaml', 'requirements.txt', 'requirements-autoquiz.txt', 'requirements-deploy.txt', 'DEPLOY_GUIDE_RU.md', 'VALIDATION_RU.md'} | NAMES
+ROOT_NAMES = {'README.md', 'START.txt', 'START.cmd', 'compose.sh', 'compose.yaml', 'compose.local.yaml', 'requirements.txt', 'requirements-autoquiz.txt', 'requirements-deploy.txt', 'DEPLOY_GUIDE_RU.md', 'VALIDATION_RU.md'} | NAMES
 
 
 def digest(path):

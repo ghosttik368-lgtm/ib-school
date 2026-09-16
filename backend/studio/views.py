@@ -1,4 +1,5 @@
 import json
+from django.conf import settings
 from pathlib import Path
 from functools import wraps
 from PIL import Image
@@ -77,7 +78,7 @@ def create(request):
 @manager
 def editor(request,pk):
     draft=owned(request,pk)
-    return render(request,'studio/editor.html',{'packet':packet(draft),'directions':list(Direction.objects.filter(is_active=True).values('id','name')),'active_section':'management'})
+    return render(request,'studio/editor.html',{'autoquiz_enabled':settings.AUTOQUIZ_ENABLED,'packet':packet(draft),'directions':list(Direction.objects.filter(is_active=True).values('id','name')),'active_section':'management'})
 
 
 @manager

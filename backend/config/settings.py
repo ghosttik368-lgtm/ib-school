@@ -43,6 +43,8 @@ INSTALLED_APPS = [
     "autoquiz",
 ]
 
+AUTOQUIZ_ENABLED = os.environ.get('AUTOQUIZ_ENABLED', '0') == '1'
+
 # Optional local AI worker. The web process never imports large AI libraries.
 AUTOQUIZ_MODEL = os.environ.get('AUTOQUIZ_MODEL', 'qwen3:4b-instruct-2507-q4_K_M')
 AUTOQUIZ_WHISPER = os.environ.get('AUTOQUIZ_WHISPER', 'medium')

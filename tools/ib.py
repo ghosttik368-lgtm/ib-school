@@ -34,13 +34,13 @@ def docker_ready():
     run(['docker', 'compose', 'version'], stdout=subprocess.DEVNULL)
 
 
-def configure():
+def configure(ai=False):
     values = read_env(ROOT / '.env.deploy')
     # Never change an existing installation's secrets, addresses or deployment mode.
     if not values:
-        run([sys.executable, ROOT / 'tools/deploy_env.py', '--mode', 'local', '--ai', 'on', '--cpp', 'on'])
+        run([sys.executable, ROOT / 'tools/deploy_env.py', '--mode', 'local', '--ai', 'on' if ai else 'off', '--cpp', 'on'])
     else:
-        run([sys.executable, ROOT / 'tools/deploy_env.py', '--ai', 'on', '--cpp', 'on'])
+        run([sys.executable, ROOT / 'tools/deploy_env.py', '--ai', 'on' if ai else 'off'])
     return read_env(ROOT / '.env.deploy')
 
 
@@ -89,18 +89,20 @@ def models_ready(values, offline):
         compose('run', '--rm', '--no-deps', '-T', 'autoquiz', 'python', 'backend/manage.py', 'autoquiz_prepare')
 
 
-def start(build=False, offline=False):
+def start(build=False, offline=False, ai=False):
     docker_ready()
-    values = configure()
+    values = configure(ai=ai)
     local = values['DEPLOY_MODE'] == 'local'
     tag = values.get('IB_IMAGE_TAG', 'local')
-    services = ['web', 'autoquiz', 'judge-local' if local else 'judge']
-    images = ['ib-school-web:' + tag, 'ib-school-autoquiz:' + tag, 'ib-school-judge:' + tag]
+    profiles = set(values.get('COMPOSE_PROFILES', '').split(','))
+    cpp = ('cpp-local' if local else 'cpp') in profiles
+    services = ['web'] + (['autoquiz'] if ai else []) + (['judge-local' if local else 'judge'] if cpp else [])
+    images = ['ib-school-web:' + tag] + (['ib-school-autoquiz:' + tag] if ai else []) + (['ib-school-judge:' + tag] if cpp else [])
     revision = source_revision()
     stale = any(image_revision(name) != revision for name in images)
     if offline:
-        required = images + ['postgres:17-bookworm', 'caddy:2-alpine', 'ollama/ollama:0.34.0']
-        if local:
+        required = images + ['postgres:17-bookworm', 'caddy:2-alpine'] + (['ollama/ollama:0.34.0'] if ai else [])
+        if local and cpp:
             required.append('ib-cpp-runner:m34')
         missing = [name for name in required if not has_image(name)]
         if missing:
@@ -109,11 +111,14 @@ def start(build=False, offline=False):
             raise RuntimeError('Docker-образы не соответствуют этому выпуску исходников. Нужен свежий USB-комплект.')
     elif build or stale:
         compose('build', '--build-arg', 'IB_SOURCE_REVISION=' + revision, *services)
-    if local and not offline and (build or stale or not has_image('ib-cpp-runner:m34')):
+    if local and cpp and not offline and (build or stale or not has_image('ib-cpp-runner:m34')):
         run(['docker', 'build', '-t', 'ib-cpp-runner:m34', ROOT / 'runner'])
     policy = ['--pull', 'never'] if offline else []
-    compose('up', '-d', '--no-build', *policy, 'db', 'initialize', 'ollama')
-    models_ready(values, offline)
+    if not ai:
+        compose('--profile', 'ai', 'stop', 'autoquiz', 'ollama')
+    compose('up', '-d', '--no-build', *policy, 'db', 'initialize', *(['ollama'] if ai else []))
+    if ai:
+        models_ready(values, offline)
     compose('up', '-d', '--no-build', *policy)
     print('\nЗапущено. Сайт: ' + ('http://localhost:' + values.get('HTTP_PORT', '8080') if local else 'https://' + values['DJANGO_ALLOWED_HOSTS'].split(',')[0]))
     print('Проверка: py tools/ib.py check | Остановка: py tools/ib.py stop')
@@ -159,18 +164,21 @@ def export_usb(destination):
     destination.mkdir(parents=True)
     try:
         # Finish downloads and verify the actual models before exporting.
-        models_ready(values, offline=True)
-        if not has_image(HELPER_IMAGE):
+        ai = 'ai' in values.get('COMPOSE_PROFILES', '').split(',')
+        cpp = 'cpp-local' in values.get('COMPOSE_PROFILES', '').split(',')
+        if ai:
+            models_ready(values, offline=True)
+        if ai and not has_image(HELPER_IMAGE):
             run(['docker', 'pull', HELPER_IMAGE])
         tag = values.get('IB_IMAGE_TAG', 'local')
-        images = ['ib-school-web:' + tag, 'ib-school-autoquiz:' + tag, 'ib-school-judge:' + tag,
-                  'ib-cpp-runner:m34', 'postgres:17-bookworm', 'caddy:2-alpine', 'ollama/ollama:0.34.0', HELPER_IMAGE]
-        if any(image_revision(name) != source_revision() for name in images[:3]):
+        app_images = ['ib-school-web:' + tag] + (['ib-school-autoquiz:' + tag] if ai else []) + (['ib-school-judge:' + tag] if cpp else [])
+        images = app_images + ['postgres:17-bookworm', 'caddy:2-alpine'] + (['ib-cpp-runner:m34'] if cpp else []) + (['ollama/ollama:0.34.0', HELPER_IMAGE] if ai else [])
+        if any(image_revision(name) != source_revision() for name in app_images):
             raise RuntimeError('Сначала пересоберите текущие исходники: py tools/ib.py start --build')
         arch = run(['docker', 'info', '--format', '{{.Architecture}}'], capture_output=True, text=True).stdout.strip()
         copy_public_source(destination / 'project')
         run(['docker', 'image', 'save', '-o', destination / 'images.tar', *images])
-        volumes = volume_names()
+        volumes = volume_names() if ai else {}
         for key, volume in volumes.items():
             member = 'models' if key == 'ollama_models' else values['AUTOQUIZ_WHISPER']
             if not re.fullmatch(r'[a-zA-Z0-9_-]+', member):
@@ -180,7 +188,7 @@ def export_usb(destination):
                  '--mount', f'type=bind,source={destination},target=/out', HELPER_IMAGE,
                  'tar', '-czf', '/out/' + key + '.tar.gz', '-C', '/source', member])
         files = {p.relative_to(destination).as_posix(): digest(p) for p in destination.rglob('*') if p.is_file()}
-        info = {'format': 'ib-usb-v1', 'architecture': arch, 'models': {k: values[k] for k in ('AUTOQUIZ_MODEL', 'AUTOQUIZ_WHISPER')},
+        info = {'format': 'ib-usb-v1', 'ai': ai, 'cpp': cpp, 'architecture': arch, 'models': {k: values[k] for k in ('AUTOQUIZ_MODEL', 'AUTOQUIZ_WHISPER')},
                 'image_tag': tag, 'files': files}
         (destination / 'usb-manifest.json').write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding='utf-8')
     except Exception:
@@ -209,7 +217,10 @@ def import_usb(source):
     if existing:
         raise RuntimeError('На этой машине уже есть данные ib-school-local. Импорт не будет их перезаписывать.')
     run(['docker', 'image', 'load', '-i', source / 'images.tar'])
-    values = configure()
+    ai = info.get('ai', True)
+    values = configure(ai=ai)
+    if not info.get('cpp', True):
+        run([sys.executable, ROOT / 'tools/deploy_env.py', '--cpp', 'off'])
     # Keep source model selection and image tags without carrying deployment secrets.
     env_path = ROOT / '.env.deploy'
     extra = {**info['models'], 'IB_IMAGE_TAG': info['image_tag']}
@@ -219,7 +230,7 @@ def import_usb(source):
     lines = [line for line in lines if line.partition('=')[0] not in extra]
     lines.extend(f"{key}='{value}'" for key, value in extra.items())
     env_path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
-    for key, volume in volume_names().items():
+    for key, volume in (volume_names() if ai else {}).items():
         run(['docker', 'volume', 'create', '--label', 'com.docker.compose.project=ib-school-local',
              '--label', 'com.docker.compose.volume=' + key, volume], stdout=subprocess.DEVNULL)
         # Python tar extraction rejects paths, links and special files before writing.
@@ -228,7 +239,7 @@ def import_usb(source):
              '--mount', f'type=volume,source={volume},target=/target',
              '--mount', f'type=bind,source={source},target=/in,readonly', HELPER_IMAGE,
              'python', '-c', code, key + '.tar.gz'])
-    start(offline=True)
+    start(offline=True, ai=ai)
 
 
 def import_accounts(path):
@@ -244,20 +255,27 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest='action', required=True)
     p = sub.add_parser('start'); p.add_argument('--build', action='store_true'); p.add_argument('--offline', action='store_true')
+    p.add_argument('--with-ai', action='store_true', help='Явно включить AI и загрузку моделей. По умолчанию выключено.')
     for name in ('stop', 'status', 'check'):
         sub.add_parser(name)
     for name in ('import-accounts', 'export-usb', 'import-usb'):
         p = sub.add_parser(name); p.add_argument('path', type=Path)
     args = parser.parse_args()
     try:
-        if args.action == 'start': start(args.build, args.offline)
+        if args.action == 'start': start(args.build, args.offline, args.with_ai)
         elif args.action == 'stop': compose('stop')
         elif args.action == 'status': compose('ps', '-a')
         elif args.action == 'check':
             compose('exec', '-T', 'web', 'python', 'backend/manage.py', 'check')
-            compose('exec', '-T', 'autoquiz', 'python', 'backend/manage.py', 'autoquiz_check', '--probe')
-            judge = 'judge-local' if read_env(ROOT / '.env.deploy').get('DEPLOY_MODE') == 'local' else 'judge'
-            compose('exec', '-T', judge, 'python', 'backend/manage.py', 'check_runner')
+            values = read_env(ROOT / '.env.deploy')
+            profiles = set(values.get('COMPOSE_PROFILES', '').split(','))
+            if 'ai' in profiles:
+                compose('exec', '-T', 'autoquiz', 'python', 'backend/manage.py', 'autoquiz_check', '--probe')
+            else:
+                print('AI выключен: модели и обработчик не требуются.')
+            if profiles & {'cpp', 'cpp-local'}:
+                judge = 'judge-local' if values.get('DEPLOY_MODE') == 'local' else 'judge'
+                compose('exec', '-T', judge, 'python', 'backend/manage.py', 'check_runner')
             compose('ps', '-a')
         elif args.action == 'import-accounts': import_accounts(args.path)
         elif args.action == 'export-usb': export_usb(args.path)

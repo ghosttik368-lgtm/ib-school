@@ -1,5 +1,16 @@
 # Local Docker Desktop testing only; not used in server mode by tools/dc.py.
 services:
+  runner-image:
+    image: ib-cpp-runner:m34
+    build:
+      context: ./runner
+    profiles: [cpp-local]
+    entrypoint: ["/bin/true"]
+    network_mode: none
+    restart: "no"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
   judge-local:
     image: ib-school-judge:${IB_IMAGE_TAG:-local}
     build:
@@ -26,6 +37,7 @@ services:
     networks: [data]
     depends_on:
       initialize: {condition: service_completed_successfully}
+      runner-image: {condition: service_completed_successfully}
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "3"}

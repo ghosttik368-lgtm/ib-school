@@ -13,6 +13,7 @@ x-app: &app
     POSTGRES_HOST: db
     POSTGRES_PORT: "5432"
     AUTOQUIZ_OLLAMA_URL: http://ollama:11434
+    AUTOQUIZ_ENABLED: ${AUTOQUIZ_ENABLED:-0}
   init: true
   restart: unless-stopped
   security_opt: ["no-new-privileges:true"]

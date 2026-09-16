@@ -42,6 +42,8 @@ def locked_draft(pk):
 
 
 def enqueue(draft, key, actor, segments=None):
+    if not settings.AUTOQUIZ_ENABLED:
+        raise ValidationError('Автоматическая генерация отключена. Добавьте обычный тест в редакторе курса.')
     _, step = video_in(draft, key)
     asset = Asset.objects.get(pk=step['asset'], draft=draft)
     source = segments_checked(segments) if segments is not None else []
@@ -66,7 +68,7 @@ def sync_videos(draft, actor):
         if draft.archived or valid.get(job.video_key) != job.asset_id:
             Generation.objects.filter(pk=job.pk).update(state='stale', token=None, revision=F('revision')+1)
     for _, step in steps(draft.data):
-        if step['kind'] == 'video' and step.get('auto_quiz') and step.get('asset') and not draft.archived:
+        if settings.AUTOQUIZ_ENABLED and step['kind'] == 'video' and step.get('auto_quiz') and step.get('asset') and not draft.archived:
             # Subtitles/manual jobs for the same file are respected by autosave.
             if not Generation.objects.filter(draft=draft, video_key=step['id'], asset_id=step['asset']).exists():
                 enqueue(draft, step['id'], actor)
@@ -113,6 +115,8 @@ def action(job_id, expected, name, index=None):
             raise ValidationError('Эта обработка уже завершена.')
         job.state, job.token, job.phase = 'cancelled', None, 'Обработка отменена'
     else:
+        if not settings.AUTOQUIZ_ENABLED:
+            raise ValidationError('Генерация отключена на этом сервере. Готовый тест можно редактировать и опубликовать.')
         video_in(draft, job.video_key, job.asset_id)
         if name == 'retry':
             if job.state not in ['failed', 'cancelled']:

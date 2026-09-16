@@ -33,6 +33,10 @@
   panelRoot=null;panelStep=null;lastStatus='';lastJob=null;
   if(step.kind!=='video')return;
   const root=document.createElement('section');root.className='aq-box';
+  if(document.getElementById('studio-app')?.dataset.aiEnabled!=='1'){
+   root.innerHTML='<h3>Тест по лекции</h3><p>Видео сохраняется и воспроизводится без автоматического анализа. Добавьте шаг «Тест» и заполните вопросы в редакторе.</p>';
+   panel.append(root);return;
+  }
   root.innerHTML=`<h3>Тест по этой лекции</h3><p>Загрузите видео — подготовим вопросы. Вы проверите их перед добавлением в курс.</p><div class="studio-field"><label><input type="checkbox" data-path="${esc(path)}.auto_quiz" ${step.auto_quiz?'checked':''}> Создавать тест автоматически после загрузки видео</label></div><div class="aq-state" data-aq-status role="status" aria-live="polite">Проверяем состояние…</div><button type="button" class="button button--primary" data-aq-queue>Создать 10 вопросов</button><details><summary>У меня есть субтитры или исправленная расшифровка</summary><p class="studio-caption">Загрузите SRT/VTT в UTF-8. Распознавание звука будет пропущено. Для внешних видеоссылок сначала нужен видеофайл на платформе.</p><input type="file" accept=".srt,.vtt" data-aq-subtitles aria-label="Файл субтитров"><button type="button" class="button button--ghost" data-aq-subtitle-queue>Создать тест по субтитрам</button></details><p class="aq-warning" data-aq-error role="alert" hidden></p>`;
   panel.append(root);panelRoot=root;panelStep=step;
   root.addEventListener('click',async event=>{
@@ -67,13 +71,13 @@
   const video=document.getElementById('aq-video');
   function fail(e){error.textContent=e.message;error.hidden=false;}
   function renderStatus(){
-   const buttons=job.active?'<button type="button" class="button button--ghost" data-aq-control="cancel">Отменить</button>':['failed','cancelled'].includes(job.state)?'<button type="button" class="button button--ghost" data-aq-control="retry">Повторить</button>':'';
+   const buttons=job.active?'<button type="button" class="button button--ghost" data-aq-control="cancel">Отменить</button>':job.generation_enabled&&['failed','cancelled'].includes(job.state)?'<button type="button" class="button button--ghost" data-aq-control="retry">Повторить</button>':'';
    status.innerHTML=`<strong>${esc(job.label)}</strong> · ${esc(job.error||job.phase)}${buttons}`;
    document.getElementById('aq-transcript').hidden=!job.has_transcript;
   }
   function render(){
    renderStatus();const editable=job.state==='ready';
-   questions.innerHTML=job.questions.map((q,i)=>`<fieldset class="aq-question" data-aq-question="${i}"><legend>ВОПРОС ${String(i+1).padStart(2,'0')} / 10</legend><label>Вопрос<textarea data-field="question" maxlength="2000" ${editable?'':'disabled'}>${esc(q.question)}</textarea></label><p class="studio-caption">Отметьте правильный ответ</p>${q.choices.map((c,j)=>`<label class="aq-choice"><input type="radio" name="correct-${i}" value="${j}" aria-label="Правильный вариант ${j+1}" ${q.correct===j?'checked':''} ${editable?'':'disabled'}><input type="text" data-choice="${j}" value="${esc(c)}" maxlength="500" aria-label="Вариант ${j+1}" ${editable?'':'disabled'}></label>`).join('')}<label>Объяснение<textarea data-field="explanation" maxlength="3000" ${editable?'':'disabled'}>${esc(q.explanation)}</textarea></label><blockquote>${esc(q.quote)}</blockquote><div class="aq-question-toolbar"><button type="button" class="button button--ghost" data-aq-seek="${q.start}">Посмотреть в видео · ${time(q.start)}</button>${editable?`<button type="button" class="tree-add" data-aq-regenerate="${i}">Создать другой вопрос</button>`:''}</div></fieldset>`).join('');
+   questions.innerHTML=job.questions.map((q,i)=>`<fieldset class="aq-question" data-aq-question="${i}"><legend>ВОПРОС ${String(i+1).padStart(2,'0')} / 10</legend><label>Вопрос<textarea data-field="question" maxlength="2000" ${editable?'':'disabled'}>${esc(q.question)}</textarea></label><p class="studio-caption">Отметьте правильный ответ</p>${q.choices.map((c,j)=>`<label class="aq-choice"><input type="radio" name="correct-${i}" value="${j}" aria-label="Правильный вариант ${j+1}" ${q.correct===j?'checked':''} ${editable?'':'disabled'}><input type="text" data-choice="${j}" value="${esc(c)}" maxlength="500" aria-label="Вариант ${j+1}" ${editable?'':'disabled'}></label>`).join('')}<label>Объяснение<textarea data-field="explanation" maxlength="3000" ${editable?'':'disabled'}>${esc(q.explanation)}</textarea></label><blockquote>${esc(q.quote)}</blockquote><div class="aq-question-toolbar"><button type="button" class="button button--ghost" data-aq-seek="${q.start}">Посмотреть в видео · ${time(q.start)}</button>${editable&&job.generation_enabled?`<button type="button" class="tree-add" data-aq-regenerate="${i}">Создать другой вопрос</button>`:''}</div></fieldset>`).join('');
    if(!job.questions.length)questions.innerHTML='<p class="studio-caption">Вопросы появятся после обработки видео. Эту страницу можно закрыть — очередь продолжит работу.</p>';
    actions.hidden=!editable;reviewed.checked=job.reviewed;
    document.getElementById('aq-export').hidden=!job.questions.length;

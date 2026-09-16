@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse, JsonResponse
@@ -20,7 +21,7 @@ def job_owned(request, pk):
 
 
 def packet(job, detail=False):
-    result = {'id': str(job.pk), 'state': job.state, 'label': job.get_state_display(),
+    result = {'generation_enabled': settings.AUTOQUIZ_ENABLED, 'id': str(job.pk), 'state': job.state, 'label': job.get_state_display(),
         'phase': job.phase, 'error': job.error, 'revision': job.revision,
         'video': job.video_key, 'asset': job.asset_id, 'quiz': job.quiz_key,
         'url': reverse('autoquiz:review', args=[job.pk]), 'active': job.state in ACTIVE,
@@ -43,13 +44,15 @@ def listing(request, draft_id):
     for job in draft.quiz_generations.order_by('-created_at'):
         if current.get(job.video_key) == job.asset_id and job.video_key not in latest:
             latest[job.video_key] = packet(job)
-    return JsonResponse({'jobs': list(latest.values()), 'worker': WorkerLease.objects.filter(name='autoquiz', expires_at__gt=timezone.now()).exists()})
+    return JsonResponse({'enabled': settings.AUTOQUIZ_ENABLED, 'jobs': list(latest.values()), 'worker': settings.AUTOQUIZ_ENABLED and WorkerLease.objects.filter(name='autoquiz', expires_at__gt=timezone.now()).exists()})
 
 
 @manager
 @require_POST
 def queue(request, draft_id):
     owned(request, draft_id)
+    if not settings.AUTOQUIZ_ENABLED:
+        return JsonResponse({'error': 'Генерация отключена на этом сервере. Добавьте обычный тест в редакторе.'}, status=503)
     payload = body(request)
     key = payload.get('video')
     if not isinstance(key, str) or len(key) > 40:

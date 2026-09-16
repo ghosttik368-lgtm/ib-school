@@ -97,6 +97,7 @@ def main():
     if mode == 'server' and 'cpp' in profiles and not values.get('JUDGE_DOCKER_HOST'):
         parser.error('Enable C++ with --cpp on --runner ssh://judge@RUNNER_IP after preparing the runner VM.')
     values['COMPOSE_PROFILES'] = ','.join(sorted(profiles))
+    values['AUTOQUIZ_ENABLED'] = '1' if 'ai' in profiles else '0'
     if any('\n' in v or '\r' in v for v in values.values()):
         parser.error('Configuration values must be single-line strings.')
     fd, temporary = tempfile.mkstemp(dir=ROOT, prefix='.env.deploy.tmp-')

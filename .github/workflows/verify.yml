@@ -26,13 +26,26 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python tools/deploy_env.py --mode local --ai on --cpp on
-      - run: python tools/dc.py config --quiet
-      - run: python tools/dc.py build web judge-local autoquiz
-      - run: docker build -t ib-cpp-runner:m34 runner
-      - run: python tools/dc.py up -d db initialize web proxy
-      - run: python tools/dc.py run --rm --no-deps -T judge-local python backend/manage.py check_runner
-      - run: python tools/dc.py run --rm --no-deps -T autoquiz python -c "import faster_whisper, ctranslate2, av; print('AI dependencies OK')"
+      - run: sh compose.sh init
+      - run: sh compose.sh config --quiet
+      - run: sh compose.sh up -d --build
+      - run: sh compose.sh exec -T judge-local python backend/manage.py check_runner
+      - name: AI is absent
+        run: |
+          test -z "$(sh compose.sh ps --services --status running | grep -E '^(autoquiz|ollama)
+      - run: python tools/dc.py run --rm --no-deps -T web python backend/manage.py test accounts.tests_issuance --noinput
+      - name: Docker-only backup
+        run: sh compose.sh backup
+      - name: HTTP health
+        run: curl --fail --retry 20 --retry-delay 2 --retry-connrefused http://localhost:8080/healthz/
+      - name: Logs
+        if: failure()
+        run: python tools/dc.py logs --tail 100
+      - name: Remove CI-only containers
+        if: always()
+        run: python tools/dc.py down -v
+ || true)"
+          sh compose.sh exec -T web python -c "import importlib.util; assert importlib.util.find_spec('faster_whisper') is None"
       - run: python tools/dc.py run --rm --no-deps -T web python backend/manage.py test accounts.tests_issuance --noinput
       - name: HTTP health
         run: curl --fail --retry 20 --retry-delay 2 --retry-connrefused http://localhost:8080/healthz/

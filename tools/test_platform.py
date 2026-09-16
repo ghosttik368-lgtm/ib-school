@@ -24,8 +24,11 @@ class PlatformTests(unittest.TestCase):
              patch.object(cli, 'compose') as compose, patch.object(cli, 'run') as run:
             cli.start(offline=True)
         run.assert_not_called()
-        models.assert_called_once_with(values, True)
+        models.assert_not_called()
         for call in compose.call_args_list:
+            if call.args[0] == '--profile':
+                self.assertEqual(call.args, ('--profile', 'ai', 'stop', 'autoquiz', 'ollama'))
+                continue
             self.assertEqual(call.args[0], 'up')
             self.assertIn('--no-build', call.args)
             self.assertIn('never', call.args)
@@ -59,6 +62,7 @@ class PlatformTests(unittest.TestCase):
         args = run.call_args.args[0]
         self.assertNotIn('--mode', args)
         self.assertNotIn('--import-keys', args)
+        self.assertEqual(args[-2:], ['--ai', 'off'])
 
     def test_account_import_mounts_only_hash_package(self):
         with tempfile.TemporaryDirectory() as tmp:

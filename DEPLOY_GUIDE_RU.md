@@ -1,11 +1,7 @@
 # Развёртывание
 
-Актуальная короткая инструкция: [README.md](README.md).
+Актуальная серверная инструкция без GPU: [docs/SERVER_RU.md](docs/SERVER_RU.md).
 
-- Все сервисы: `py tools/ib.py start`
-- Обновить образы после обновления кода: `py tools/ib.py start --build`
-- Проверить сайт, AI и C++: `py tools/ib.py check`
-- Флешка: [docs/USB_RU.md](docs/USB_RU.md)
-- Домен, HTTPS, серверная VM для C++ и резервные копии: [docs/DEPLOY_ADVANCED_RU.md](docs/DEPLOY_ADVANCED_RU.md)
+[Все порты](docs/PORTS_RU.md). [Локальный запуск](README.md). [AI отдельно](docs/AI_OPTIONAL_RU.md). [Флешка](docs/USB_RU.md).
 
-Не используйте старые инструкции M1–M6 для новой установки: они сохранены в `docs/history` как история разработки.
+Расширенные операции переноса и восстановления: [docs/DEPLOY_ADVANCED_RU.md](docs/DEPLOY_ADVANCED_RU.md).
