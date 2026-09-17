@@ -1,29 +1,20 @@
-# AI — отдельная опция
+# AI — дополнительная опция
 
-На сервере AI выключен: нет Ollama/Whisper, скачивания моделей, распознавания видео или очереди генерации после загрузки. Обычные тесты работают без нейросетей. Ранее созданные тесты и готовые AI-черновики можно редактировать и публиковать.
+Для основной платформы и C++:
 
-GPU не является строгим требованием моделей, но работа на CPU может быть медленной. Готовые SRT/VTT убирают этап распознавания, однако генерация вопросов всё равно требует Qwen. Поэтому основной сервер не зависит ни от одного этапа.
+    docker compose up -d --build
 
-При необходимости готовьте материал на отдельном компьютере:
+Для всей платформы вместе с Ollama, Qwen и Whisper:
 
-    py tools/ib.py start --with-ai
-    py tools/ib.py check
+    docker compose -f compose.yaml -f compose.ai.yaml up -d --build
 
-Модели скачиваются и запускаются на этом компьютере. Следующий start без --with-ai снова выключает AI. Существующая загрузка SRT/VTT поддерживается.
+Модели скачиваются автоматически контейнером ai-prepare и сохраняются в томах. GPU не обязателен; на CPU обработка может быть медленной. Сайт и C++ запускаются независимо от загрузки моделей. Проверка после подготовки:
 
-В Docker-only режиме:
+    docker compose -f compose.yaml -f compose.ai.yaml exec autoquiz python backend/manage.py autoquiz_check --probe
 
-    sh compose.sh init --ai on
-    sh compose.sh --profile ai up -d --build
-    sh compose.sh exec -T ollama ollama pull qwen3:4b-instruct-2507-q4_K_M
-    sh compose.sh run --rm --no-deps -T autoquiz python backend/manage.py autoquiz_prepare
-    sh compose.sh exec -T autoquiz python backend/manage.py autoquiz_check --probe
+Отключить AI, сохранив модели:
 
-Отключить:
+    docker compose -f compose.yaml -f compose.ai.yaml stop autoquiz ai-prepare ollama
+    docker compose up -d --build --remove-orphans
 
-    sh compose.sh init --ai off
-    sh compose.sh up -d
-
-После подготовки проверьте вопросы и внесите их в обычный шаг «Тест» на сервере. На экране проверки есть скачивание вопросов в JSON для переноса текста. Автоматического импорта отдельного AI-теста между платформами в этом выпуске нет. Перенос всей базы с готовыми курсами поддерживается штатными резервными копиями.
-
-Это обновление не содержит заранее обработанных лекций: видео для такой подготовки не предоставлялись.
+При обычном запуске нет обращения к моделям; видео воспроизводятся и тесты создаются вручную. Готовые тесты сохраняются.

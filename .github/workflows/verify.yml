@@ -45,3 +45,36 @@ jobs:
       - name: Remove CI-only containers
         if: always()
         run: python tools/dc.py down -v
+  onebox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate default and optional AI configuration
+        run: |
+          test ! -f .env.deploy
+          docker compose config --quiet
+          docker compose -f compose.yaml -f compose.ai.yaml config --quiet
+          python deploy/onebox/test_bootstrap.py
+      - name: Start everything with one command
+        run: docker compose up -d --build
+      - name: Verify website and real C++
+        run: |
+          curl --fail --retry 15 --retry-delay 2 --retry-connrefused http://localhost/healthz/
+          docker compose exec -T judge python backend/manage.py check_runner --repeat 20
+          docker compose exec -T web python backend/manage.py test practice accounts.tests_issuance --noinput
+      - name: Restart preserves private settings and existing accounts
+        run: |
+          docker compose exec -T web sha256sum /run/ib/settings.json > /tmp/config-before
+          docker compose exec -T web python backend/manage.py shell -c "from accounts.models import User; assert User.objects.filter(username='admin', is_superuser=True).count()==1"
+          docker compose up -d --build
+          docker compose exec -T web sha256sum /run/ib/settings.json > /tmp/config-after
+          diff /tmp/config-before /tmp/config-after
+          docker compose exec -T web python backend/manage.py shell -c "from accounts.models import User; assert User.objects.count()==1"
+          docker compose exec -T judge python backend/manage.py check_runner --repeat 3
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs --tail 100
+      - name: Remove disposable CI data
+        if: always()
+        run: docker compose down -v --remove-orphans

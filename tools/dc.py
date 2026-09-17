@@ -14,7 +14,7 @@ def command():
         raise RuntimeError('Run tools/deploy_env.py first.')
     if values.get('DEPLOY_MODE') == 'local' and values.get('BIND_IP') != '127.0.0.1':
         raise RuntimeError('Local mode must bind to 127.0.0.1.')
-    args = ['docker', 'compose', '--env-file', str(ROOT / '.env.deploy'), '-f', str(ROOT / 'compose.yaml')]
+    args = ['docker', 'compose', '--env-file', str(ROOT / '.env.deploy'), '-f', str(ROOT / 'compose.legacy.yaml')]
     if values.get('DEPLOY_MODE') == 'local':
         args.extend(['-f', str(ROOT / 'compose.local.yaml')])
     env = dict(os.environ)

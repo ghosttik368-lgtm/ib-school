@@ -2,150 +2,143 @@ name: ${COMPOSE_PROJECT_NAME:-ib-school}
 
 x-app: &app
   image: ib-school-web:${IB_IMAGE_TAG:-local}
-  build:
-    context: .
-    dockerfile: deploy/Dockerfile
-    target: web
-  env_file: .env.deploy
-  environment: &app-env
-    DJANGO_SETTINGS_MODULE: config.container_settings
+  build: {context: ., dockerfile: deploy/Dockerfile, target: web}
+  environment: &env
+    DJANGO_SETTINGS_MODULE: config.onebox_settings
     DB_ENGINE: postgresql
     POSTGRES_HOST: db
     POSTGRES_PORT: "5432"
-    AUTOQUIZ_OLLAMA_URL: http://ollama:11434
-    AUTOQUIZ_ENABLED: ${AUTOQUIZ_ENABLED:-0}
+    AUTOQUIZ_ENABLED: "0"
   init: true
   restart: unless-stopped
-  security_opt: ["no-new-privileges:true"]
-  cap_drop: [ALL]
   read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
   tmpfs: ["/tmp:size=768m,mode=1777"]
-  logging: &logging
+  logging: &log
     driver: json-file
     options: {max-size: "10m", max-file: "3"}
 
 services:
+  bootstrap:
+    <<: *app
+    user: "0:0"
+    cap_add: [CHOWN, DAC_OVERRIDE]
+    restart: "no"
+    command: [python, deploy/onebox/bootstrap.py]
+    env_file:
+      - path: .env.deploy
+        required: false
+    environment:
+      IB_SITE: ${IB_SITE:-}
+    volumes: ["runtime:/run/ib", "routing:/run/routing"]
+    network_mode: none
+
   db:
     image: postgres:17-bookworm
     restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:?Run tools/deploy_env.py first}
-      POSTGRES_USER: ${POSTGRES_USER:?Run tools/deploy_env.py first}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run tools/deploy_env.py first}
-    volumes: ["database:/var/lib/postgresql/data"]
+    entrypoint: [sh, -c, 'export POSTGRES_USER="$$(cat /run/ib/db-user)" POSTGRES_DB="$$(cat /run/ib/db-name)" POSTGRES_PASSWORD_FILE=/run/ib/db-password; exec docker-entrypoint.sh postgres']
+    volumes: ["database:/var/lib/postgresql/data", "runtime:/run/ib:ro"]
     networks: [data]
+    depends_on:
+      bootstrap: {condition: service_completed_successfully}
     healthcheck:
-      test: [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      test: [CMD-SHELL, 'pg_isready -U "$$(cat /run/ib/db-user)" -d "$$(cat /run/ib/db-name)"']
       interval: 5s
       timeout: 5s
-      retries: 20
-    logging: *logging
+      retries: 30
+    logging: *log
 
   initialize:
     <<: *app
     restart: "no"
-    command: [python, deploy/initialize.py]
-    volumes: ["media:/app/backend/media", "static:/app/backend/staticfiles"]
+    command: [python, deploy/onebox/initialize.py]
+    volumes: ["runtime:/run/ib:ro", "media:/app/backend/media", "static:/app/backend/staticfiles", "./private:/import:ro"]
     networks: [data]
     depends_on:
       db: {condition: service_healthy}
 
   web:
     <<: *app
-    volumes: ["media:/app/backend/media", "static:/app/backend/staticfiles:ro"]
+    volumes: ["runtime:/run/ib:ro", "media:/app/backend/media", "static:/app/backend/staticfiles:ro"]
     networks: [data, front, ai]
     depends_on:
       initialize: {condition: service_completed_successfully}
     healthcheck:
       test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz/', timeout=4).read()"]
-      interval: 15s
+      interval: 10s
       timeout: 5s
       start_period: 30s
-      retries: 5
+      retries: 10
 
   proxy:
     image: caddy:2-alpine
     restart: unless-stopped
-    environment:
-      SITE_ADDRESS: ${SITE_ADDRESS:?Run tools/deploy_env.py first}
-    ports:
-      - "${BIND_IP:-127.0.0.1}:${HTTP_PORT:-8080}:80"
-      - "${BIND_IP:-127.0.0.1}:${HTTPS_PORT:-8443}:443"
-    volumes:
-      - "./deploy/${CADDY_CONFIG:-Caddyfile}:/etc/caddy/Caddyfile:ro"
-      - "static:/srv/static:ro"
-      - "caddy_data:/data"
-      - "caddy_config:/config"
+    entrypoint: [sh, -c, 'export SITE_ADDRESS="$$(cat /run/routing/site)"; exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile']
+    ports: ["${BIND_IP:-0.0.0.0}:${HTTP_PORT:-80}:80", "${BIND_IP:-0.0.0.0}:${HTTPS_PORT:-443}:443"]
+    volumes: ["./deploy/${CADDY_CONFIG:-Caddyfile}:/etc/caddy/Caddyfile:ro", "routing:/run/routing:ro", "static:/srv/static:ro", "caddy_data:/data", "caddy_config:/config"]
     networks: [front, outbound]
     depends_on:
       web: {condition: service_healthy}
-    logging: *logging
+    logging: *log
 
-  ollama:
-    image: ollama/ollama:0.34.0
-    profiles: [ai]
+  runner:
+    hostname: runner
+    image: ib-school-runner-daemon:${IB_IMAGE_TAG:-local}
+    build: {context: ., dockerfile: deploy/onebox/Runner.Dockerfile}
+    privileged: true
     restart: unless-stopped
     environment:
-      OLLAMA_HOST: "0.0.0.0:11434"
-      OLLAMA_MAX_LOADED_MODELS: "1"
-      OLLAMA_NUM_PARALLEL: "1"
-      OLLAMA_NO_CLOUD: "1"
-    volumes: ["ollama_models:/root/.ollama"]
-    networks: [ai, outbound]
+      DOCKER_TLS_CERTDIR: /certs
+    volumes: ["runner_data:/var/lib/docker", "runner_client:/certs/client"]
+    networks:
+      runner_net: {aliases: [docker]}
     healthcheck:
-      test: [CMD, ollama, list]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-    logging: *logging
-
-  autoquiz:
-    <<: *app
-    image: ib-school-autoquiz:${IB_IMAGE_TAG:-local}
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile
-      target: autoquiz
-    profiles: [ai]
-    volumes: ["media:/app/backend/media:ro", "whisper_models:/app/.autoquiz_models"]
-    networks: [data, ai, outbound]
-    depends_on:
-      initialize: {condition: service_completed_successfully}
-      ollama: {condition: service_healthy}
-    stop_grace_period: 30s
+      test: [CMD-SHELL, 'test -f /tmp/runner-ready && docker -H unix:///var/run/docker.sock image inspect ib-cpp-runner:m34 >/dev/null']
+      interval: 5s
+      timeout: 5s
+      start_period: 10m
+      retries: 12
+    logging: *log
 
   judge:
     <<: *app
     image: ib-school-judge:${IB_IMAGE_TAG:-local}
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile
-      target: judge
-    profiles: [cpp]
+    build: {context: ., dockerfile: deploy/Dockerfile, target: judge}
     environment:
-      <<: *app-env
-      DOCKER_HOST: ${JUDGE_DOCKER_HOST:-ssh://judge@runner.invalid}
-    volumes:
-      - type: bind
-        source: ./deploy/secrets/judge
-        target: /home/app/.ssh
-        read_only: true
-        bind: {create_host_path: false}
-    networks: [data, outbound]
+      <<: *env
+      DOCKER_HOST: tcp://runner:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /run/runner-client
+    volumes: ["runtime:/run/ib:ro", "runner_client:/run/runner-client:ro"]
+    networks: [data, runner_net]
     depends_on:
       initialize: {condition: service_completed_successfully}
+      runner: {condition: service_healthy}
+
+  restore:
+    <<: *app
+    profiles: [maintenance]
+    user: "0:0"
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    restart: "no"
+    network_mode: none
+    volumes: ["runtime:/run/ib", "media:/app/backend/media"]
 
 networks:
   data: {internal: true}
   front: {internal: true}
   ai: {internal: true}
   outbound: {}
+  runner_net: {}
 
 volumes:
   database: {}
   media: {}
   static: {}
+  runtime: {}
+  routing: {}
   caddy_data: {}
   caddy_config: {}
-  ollama_models: {}
-  whisper_models: {}
+  runner_data: {}
+  runner_client: {}

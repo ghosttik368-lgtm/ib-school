@@ -1,7 +1,13 @@
 # Развёртывание
 
-Актуальная серверная инструкция без GPU: [docs/SERVER_RU.md](docs/SERVER_RU.md).
+В папке проекта:
 
-[Все порты](docs/PORTS_RU.md). [Локальный запуск](README.md). [AI отдельно](docs/AI_OPTIONAL_RU.md). [Флешка](docs/USB_RU.md).
+    docker compose up -d --build
 
-Расширенные операции переноса и восстановления: [docs/DEPLOY_ADVANCED_RU.md](docs/DEPLOY_ADVANCED_RU.md).
+Сайт http://localhost или http://IP-СЕРВЕРА. Всё необходимое, включая C++, входит в Compose. Предварительные init, Python и отдельная VM не нужны.
+
+[Короткая инструкция и аккаунты](README.md).
+[Обновление и перенос данных](docs/SERVER_RU.md).
+[Все порты](docs/PORTS_RU.md).
+
+Прежняя конфигурация доступна как compose.legacy.yaml; старые команды compose.sh/tools/dc.py используют её. Не смешивайте способы запуска в одном проекте.

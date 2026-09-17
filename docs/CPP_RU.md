@@ -28,29 +28,14 @@
 
 Без журнала с проблемного сервера нельзя утверждать, что конкретная ошибка «после двух использований» воспроизведена. Устранены обнаруженные в коде причины отказа; целевой сервер проверяется командой ниже.
 
-## Обновление существующего Docker-развёртывания
+## Docker: один сервер, одна команда
 
-В папке проекта:
+    docker compose up -d --build
 
-```bash
-sh compose.sh backup
-git pull --ff-only
-sh compose.sh up -d --build
-sh compose.sh ps -a
-```
+C++ включён по умолчанию. runner сам собирает компилятор, judge запускается после готовности. Вторая VM и SSH не нужны. Внутреннее соединение judge → runner использует TLS, порт 2376 не публикуется. runner работает в privileged Docker-in-Docker; это не VM-изоляция. Подробности и обновление со старой схемы: [SERVER_RU.md](SERVER_RU.md).
 
-Миграция practice.0002 добавляет поля отправок автоматически через initialize. Старые курсы, решения, аккаунты и баллы сохраняются. AI остаётся отключённым, если ранее был выключен. Не удаляйте .env.deploy и Docker volumes.
-
-Проверка на сервере с настроенным SSH-runner:
-
-```bash
-sh compose.sh exec -T judge python backend/manage.py check_runner --repeat 20
-sh compose.sh logs --tail 100 judge
-```
-
-Локально вместо judge используется judge-local. Первоначальное подключение VM: [SERVER_RU.md](SERVER_RU.md). Runner/Dockerfile в этом выпуске не менялся, пересобирать его на VM для этого обновления не нужно. GPU не требуется. Схема изоляции сохраняется: серверный worker подключается к отдельной VM по SSH; студент работает только на сайте.
-
-Порты прежние: сайт 80/443, web 8000 и PostgreSQL 5432 внутри Docker, SSH runner обычно 22. [Полный перечень](PORTS_RU.md).
+    docker compose exec judge python backend/manage.py check_runner --repeat 20
+    docker compose logs --tail 100 judge runner
 
 ## Ориентир Stepik
 

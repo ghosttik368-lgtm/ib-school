@@ -1,81 +1,90 @@
-# Сервер кафедры: без GPU и обязательного AI
+# Запуск одной командой
 
-Нужны Linux и работающий Docker Engine с Compose v2. Python, Ollama, Whisper и g++ на хост не устанавливаются. По умолчанию сервер только хранит/отдаёт видео. Обычные тесты создаются в редакторе.
+После получения проекта нужны только Docker Engine/Desktop с Compose 2.24+ и Linux containers. В папке с compose.yaml:
 
-## 1. Веб-платформа
+```bash
+docker compose up -d --build
+```
 
-В папке с compose.yaml:
+Сайт: http://IP-СЕРВЕРА или http://localhost. Никаких предварительных init, pip, SSH и второй VM. Все зависимости устанавливаются внутри контейнеров автоматически. Первый запуск требует доступа к Docker Hub, PyPI и Debian-репозиториям. Компилятор бесплатный.
 
-    sh compose.sh init --mode server --site learn.example.org --ai off --cpp off
-    sh compose.sh up -d --build
-    sh compose.sh ps -a
+Статус: `docker compose ps -a`. bootstrap и initialize со статусом Exited (0) — нормальный результат. У runner первая сборка может занять несколько минут; judge запускается после его готовности.
 
-Замените домен своим, направленным на сервер. Для автоматического публичного сертификата Caddy нужны корректный DNS и доступные 80/443. Сайт: https://ВАШ-ДОМЕН.
+## Устройство
 
-Уже работают курсы, материалы, видео, обычные тесты, сообщения, рейтинги и аналитика. **Проверку C++ включает следующий шаг.** initialize со статусом Exited (0) означает успешное завершение миграций и сбора статики.
+- bootstrap создаёт уникальные ключи и пароли в постоянном томе runtime.
+- db — PostgreSQL, initialize — миграции, статика и начальные аккаунты.
+- web и proxy — сайт.
+- runner — собственный Docker daemon, автоматически собирающий образ GNU C++.
+- judge — очередь проверки, обращается к runner по TLS внутри Docker.
 
-compose.sh — оболочка над стандартным Docker Compose. После init сервер можно запустить напрямую:
+runner использует **privileged Docker-in-Docker**. Это явный компромисс односерверной установки: контейнеры делят ядро хоста, такая изоляция не равна отдельной VM. Docker-сокет хоста, домашние каталоги и база в runner не монтируются; Docker API не публикуется наружу. Каждое решение работает без сети, от непривилегированного пользователя, с ограничениями времени, памяти и процессов. Docker должен разрешать privileged-контейнеры.
 
-    docker compose --env-file .env.deploy up -d --build
+## Аккаунты
 
-Оболочка дополнительно останавливает старые AI-контейнеры, когда AI выключен.
+В пустой установке без private/accounts.json автоматически создаётся admin. Пароль:
 
-Если HTTPS уже обслуживает proxy на этом же хосте, добавьте к init **--behind-proxy** и направьте proxy на 127.0.0.1:8080 с заголовком X-Real-IP. Для частного домена используйте доверенный сертификат на существующем proxy. Local-режим не предназначен для публикации.
+```bash
+docker compose exec web cat /run/ib/admin-password
+```
 
-## 2. C++: отдельная Linux-VM с Docker, без GPU
+Чтобы сразу получить 1000 выданных аккаунтов, ДО первого запуска положите accounts.json в private/accounts.json. Импорт автоматический; используйте admin001 и его выданный пароль. Существующая база никогда не очищается. Если уже созданы пользователи, импорт пропускается; не удаляйте ради него базу с курсами.
 
-Существующая серверная схема исполняет чужой код на отдельной VM, отделённой от базы и сайта. На VM нужен SSH-пользователь judge с доступом к Docker. Ограничения памяти, времени, процессов и отключение сети задаёт проверяющий.
+## Переход со старой установки
 
-На сервере сайта, **если выделенный ключ ещё не создан**:
+Сделайте прежнюю резервную копию до git pull. Для старого выпуска: `sh compose.sh backup`.
 
-    mkdir -p deploy/secrets/judge
-    ssh-keygen -t ed25519 -f deploy/secrets/judge/id_ed25519 -N ''
-    ssh-copy-id -i deploy/secrets/judge/id_ed25519.pub judge@RUNNER_IP
-    ssh -i deploy/secrets/judge/id_ed25519 -o UserKnownHostsFile=deploy/secrets/judge/known_hosts judge@RUNNER_IP docker info
-    scp -i deploy/secrets/judge/id_ed25519 -o UserKnownHostsFile=deploy/secrets/judge/known_hosts -r runner judge@RUNNER_IP:~/ib-runner
-    ssh -i deploy/secrets/judge/id_ed25519 -o UserKnownHostsFile=deploy/secrets/judge/known_hosts judge@RUNNER_IP 'docker build -t ib-cpp-runner:m34 ~/ib-runner'
-    chmod 600 deploy/secrets/judge/id_ed25519
-    chmod 644 deploy/secrets/judge/known_hosts deploy/secrets/judge/id_ed25519.pub
-    sudo chown -R 10001:10001 deploy/secrets/judge
-    sh compose.sh init --cpp on --runner ssh://judge@RUNNER_IP --ai off
-    sh compose.sh up -d --build
-    sh compose.sh exec -T judge python backend/manage.py check_runner
+Сохраните .env.deploy. Для прежнего серверного проекта ib-school:
 
-Замените RUNNER_IP. При первом подключении сверьте fingerprint по консоли VM. Не перезаписывайте существующий ключ; не загружайте приватный ключ в Git. Worker в Compose работает с UID 10001. Выделенный ключ без парольной фразы нужен для фонового SSH.
+```bash
+git pull --ff-only
+docker compose --env-file .env.deploy up -d --build --remove-orphans
+```
 
-Теперь работает весь прежний функционал кроме отключённого AI. Без отдельной VM сайт можно запустить сразу, но компиляция останется выключенной. Docker TCP 2375 не требуется.
+--remove-orphans останавливает старые worker/AI-контейнеры, отсутствующие в новой конфигурации; тома не удаляются. Имеющиеся ключи и пароль PostgreSQL импортируются из .env.deploy при первом создании runtime. Для старого локального проекта оставьте COMPOSE_PROJECT_NAME=ib-school-local в .env.deploy: предыдущая команда использует именно его тома. Пользователи, материалы и курсы сохраняются. Запускайте дальнейшие команды с тем же --env-file .env.deploy. Не переключайте имя проекта, иначе Docker создаст другой набор томов.
 
-## 3. Аккаунты
+Если использовался нестандартный proxy, сохраняются HTTP_PORT, HTTPS_PORT, BIND_IP и CADDY_CONFIG из .env.deploy при указанном --env-file. Домен хранится в runtime; поменять его можно переменной IB_SITE.
 
-Приватный архив прежний. Поместите accounts.json в private/accounts.json проекта; эта папка исключена из Git. До импорта база не должна содержать пользователей:
+Старая схема с SSH-VM и команды tools/ib.py, tools/dc.py, compose.sh оставлены для совместимости и используют **compose.legacy.yaml**. Для новой схемы используйте обычный docker compose. Не запускайте обе схемы одновременно под одним именем проекта.
 
-    sh compose.sh run --rm --no-deps -T --volume "$PWD/private/accounts.json:/private/accounts.json:ro" web python backend/manage.py import_accounts /private/accounts.json
+## Последующие обновления новой установки
 
-Вход: admin001, пароль из приватной CSV. PostgreSQL уже подключён Compose; SQLite-файл не нужен.
+Сначала резервная копия, затем:
 
-## 4. Обновление
+```bash
+git pull --ff-only
+docker compose up -d --build
+```
 
-В текущем выпуске резервная копия без Python на хосте:
+Runtime сохраняет ключи и пароль БД. Пароль существующего admin не сбрасывается.
 
-    sh compose.sh backup
+## Резервная копия и восстановление новой схемы
 
-Дождитесь Backup complete. Сохраняются PostgreSQL, материалы и ключи, запись временно останавливается. На предыдущем выпуске compose.sh ещё отсутствует: используйте прежнюю python3 tools/backup_compose.py перед обновлением. Если установка ещё не содержит данных, резервировать нечего.
+Остановите запись и сохраните базу, материалы и runtime. Команды ниже для bash/Linux; выполняются из папки проекта. Для старой установки добавляйте --env-file .env.deploy ко всем docker compose.
 
-Затем:
+```bash
+mkdir -p backups
+docker compose stop web judge
+docker compose exec -T db sh -c 'pg_dump -Fc -U "$(cat /run/ib/db-user)" "$(cat /run/ib/db-name)"' > backups/database.dump
+docker compose run --rm --no-deps -T web tar -czf - -C / run/ib app/backend/media > backups/files.tar.gz
+docker compose start web judge
+```
 
-    git pull --ff-only
-    sh compose.sh init --ai off
-    sh compose.sh up -d --build
-    sh compose.sh exec -T web python backend/manage.py check
+Если AI включён, также остановите autoquiz через оба compose-файла до копирования и запустите после. Архив files.tar.gz содержит ключи и исходный пароль admin — храните его приватно вместе с database.dump. Не публикуйте в GitHub.
 
-Старые AI-контейнеры останавливаются; модели, очереди и курсы не удаляются. Не меняйте COMPOSE_PROJECT_NAME, не удаляйте .env.deploy и не выполняйте down -v. Существующий local/server режим автоматически не меняется. Перенос на новую машину: резервная копия и docs/DEPLOY_ADVANCED_RU.md.
+Для восстановления на НОВОЙ машине с пустыми томами (не для наложения поверх рабочих данных):
 
-## Управление
+```bash
+docker compose build web
+docker compose run --rm --no-deps bootstrap
+# Восстановить настройки ДО создания новой PostgreSQL:
+docker compose run --rm --no-deps -T restore tar -xzf - -C / < backups/files.tar.gz
+docker compose run --rm --no-deps bootstrap
+docker compose up -d db
+docker compose exec -T db sh -c 'pg_restore --clean --if-exists --no-owner --exit-on-error -U "$(cat /run/ib/db-user)" -d "$(cat /run/ib/db-name)"' < backups/database.dump
+docker compose up -d --build
+```
 
-    sh compose.sh logs --tail 100 web initialize judge
-    sh compose.sh stop
-    sh compose.sh up -d
+Перед pg_restore дождитесь healthy у db (`docker compose ps`). При восстановлении используйте те же имена и конфигурацию томов; для архивов прежней схемы действует прежний restore_backup.py, это другой формат. Для ручного восстановления томов обратитесь к администратору Docker.
 
-[Порты](PORTS_RU.md). [AI как отдельная опция](AI_OPTIONAL_RU.md).
-
-Обновлённый C++: [инструкция и диагностика](CPP_RU.md).
+[Все порты](PORTS_RU.md). [C++](CPP_RU.md). [Прежняя SSH-схема](SERVER_LEGACY_RU.md).

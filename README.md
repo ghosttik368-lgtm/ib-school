@@ -1,80 +1,54 @@
 # ИБ — обучающая платформа
 
-Курсы, видео, документы, тесты, C++, чат, рейтинг и аналитика. **AI по умолчанию выключен. GPU, Ollama и Whisper для обычной работы не нужны.** Загрузка видео только сохраняет файл, без распознавания.
+Нужен только **Docker с Compose 2.24+**, в Windows — Docker Desktop в режиме Linux containers. Отдельные Python, PostgreSQL, g++, SSH и виртуальная машина не нужны.
 
-## Сервер кафедры (Linux)
+В папке проекта выполните:
 
-Нужны Docker Engine с Compose v2. Python на хосте не требуется. Из папки проекта:
+```bash
+docker compose up -d --build
+```
 
-    sh compose.sh init --mode server --site learn.example.org --ai off --cpp off
-    sh compose.sh up -d --build
+Откройте **http://localhost** на этом компьютере или **http://IP-СЕРВЕРА** с другого. По умолчанию запускаются сайт, база, C++ и все обычные функции платформы. Настройки, ключи, миграции, статика и образ компилятора создаются автоматически. При первом запуске Docker скачивает бесплатные образы и зависимости; Интернет требуется. Повторный запуск сохраняет данные.
 
-Замените домен своим. Сайт открывается по HTTPS. На этом этапе запускаются веб-платформа и PostgreSQL. **Исполнение C++ подключается через отдельную VM с Docker**; ей GPU также не нужна. Подготовка VM, включение C++, импорт аккаунтов: [docs/SERVER_RU.md](docs/SERVER_RU.md).
+**Вход:** логин `admin`. Узнать автоматически созданный пароль:
 
-Если HTTPS уже обслуживает другой proxy на этом же хосте, добавьте --behind-proxy согласно серверной инструкции.
+```bash
+docker compose exec web cat /run/ib/admin-password
+```
 
-Порты снаружи: **80/TCP, 443/TCP**. Django 8000 и PostgreSQL 5432 доступны только внутри Docker. C++ использует SSH к VM, обычно 22/TCP. [Полная таблица портов](docs/PORTS_RU.md).
+Пароль уникальный для установки; при входе его нужно сменить. Настройка 2FA преподавателей и администраторов остаётся включённой. Если вместо стартового админа импортированы выданные аккаунты, используйте `admin001` и пароль из приватного архива.
 
-## Локально на Windows
+## Готовые 1000 аккаунтов
 
-Нужны Docker Desktop с WSL 2 и Python 3.10+. Из корня проекта:
-
-    py tools/ib.py start
-
-Или START.cmd. Сайт: **http://localhost:8080**. Сайт, PostgreSQL и C++ работают в Docker. Модели не скачиваются, виртуальное окружение не требуется. При первом запуске нужен интернет для Docker-образов и пакетов.
-
-Локально на Linux без Python:
-
-    sh compose.sh init
-    sh compose.sh up -d --build
-
-Образ песочницы C++ автоматически собирается Compose. Этот режим доступен только на localhost; не публикуйте его наружу.
-
-## Аккаунты
-
-Прежний приватный архив IB_ACCOUNTS_1000_PRIVATE.zip совместим: 850 студентов, 100 преподавателей, 50 администраторов. В новой пустой установке:
-
-    py tools/ib.py import-accounts "D:\IB_ACCOUNTS_1000_PRIVATE\accounts.json"
-
-Для Linux без Python команда приведена в SERVER_RU.md. Вход: admin001, пароль из credentials.csv. При первом входе каждый пользователь меняет выданный пароль. Импорт не перезаписывает существующих пользователей. Docker использует PostgreSQL и accounts.json; SQLite-файл не нужно копировать в Docker.
-
-## Обновление
-
-Сначала резервная копия: **sh compose.sh backup** на Linux или **py tools/backup_compose.py** на Windows. Дождитесь Backup complete.
-
-Linux:
-
-    git pull --ff-only
-    sh compose.sh init --ai off
-    sh compose.sh up -d --build
-
-На предыдущем выпуске compose.sh ещё нет: сначала сделайте копию прежней командой python3 tools/backup_compose.py, затем обновляйте Git.
-
-Windows:
-
-    git pull --ff-only
-    py tools/ib.py start --build
-
-AI выключится, старые AI-контейнеры остановятся. Модели, курсы, очереди, ключи и настройки C++ сохраняются. Не меняйте имя Compose-проекта и не удаляйте .env.deploy. **Не выполняйте down -v: это удаляет тома с данными.**
+**До первого запуска** распакуйте из приватного архива только `accounts.json` в `private/accounts.json`. Compose автоматически импортирует его в пустую базу. Тогда стартовый `admin` не создаётся. CSV с паролями храните отдельно. В уже заполненную базу автоматический импорт не выполняется. SQLite-файл сюда не копируется.
 
 ## Управление
 
-    py tools/ib.py status
-    py tools/ib.py check
-    py tools/ib.py stop
+```bash
+docker compose ps -a
+docker compose logs --tail 100 web judge runner
+docker compose stop
+docker compose up -d
+```
 
-Проверка не требует нейросетей при AI=off. Linux: sh compose.sh ps -a, sh compose.sh logs --tail 100, sh compose.sh stop. Статус initialize/runner-image Exited (0) нормален: это одноразовые служебные контейнеры.
+Проверка настоящего C++:
 
-## AI и флешка
+```bash
+docker compose exec judge python backend/manage.py check_runner --repeat 20
+```
 
-AI включается только явно: **py tools/ib.py start --with-ai**. [Отдельная инструкция](docs/AI_OPTIONAL_RU.md).
+## HTTPS и нейросети — по необходимости
 
-    py tools/ib.py export-usb "D:\IB_USB"
+Для домена создайте `.env` с одной строкой `IB_SITE=school.example.org` (подставьте свой домен с DNS на сервер) и выполните ту же команду запуска. Caddy получает HTTPS-сертификат автоматически; порты 80/443 должны быть доступны.
 
-При выключенном AI комплект содержит исходники и образы без весов моделей. На новой подготовленной машине из IB_USB/project: py tools/ib.py import-usb "..". Аккаунты передаются отдельно. [Перенос без интернета](docs/USB_RU.md).
+AI выключен по умолчанию, GPU не требуется. Если нужны Qwen и Whisper, отдельная команда поднимет и подготовит их автоматически, без ручной установки моделей:
 
-[Оформление по брендбуку](docs/BRAND_RU.md). Старые инструкции M1–M6 хранятся в docs/history.
+```bash
+docker compose -f compose.yaml -f compose.ai.yaml up -d --build
+```
 
-## C++ на сайте
+AI скачивает несколько ГБ весов и на CPU работает медленно. Для сервера кафедры достаточно обычной команды без AI.
 
-[Редактор, проверка решений, обновление и диагностика](docs/CPP_RU.md). AI и GPU не требуются.
+[Порты](docs/PORTS_RU.md) · [Обновление, резервирование и перенос](docs/SERVER_RU.md) · [Редактор C++](docs/CPP_RU.md)
+
+**Существующая установка:** перед переходом прочитайте раздел обновления; сохраните `.env.deploy` и прежнее имя Compose-проекта. `docker compose down -v` удаляет данные.

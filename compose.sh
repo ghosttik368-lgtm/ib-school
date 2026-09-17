@@ -19,9 +19,9 @@ if [ ! -f .env.deploy ]; then
 fi
 compose() {
     if grep -q "^DEPLOY_MODE='local'" .env.deploy; then
-        docker compose --env-file .env.deploy -f compose.yaml -f compose.local.yaml "$@"
+        docker compose --env-file .env.deploy -f compose.legacy.yaml -f compose.local.yaml "$@"
     elif grep -q "^DEPLOY_MODE='server'" .env.deploy; then
-        docker compose --env-file .env.deploy -f compose.yaml "$@"
+        docker compose --env-file .env.deploy -f compose.legacy.yaml "$@"
     else
         echo 'Unknown DEPLOY_MODE; see README.md.' >&2
         return 1
