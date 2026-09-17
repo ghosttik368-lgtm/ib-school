@@ -77,3 +77,5 @@ compose.sh — оболочка над стандартным Docker Compose. П
     sh compose.sh up -d
 
 [Порты](PORTS_RU.md). [AI как отдельная опция](AI_OPTIONAL_RU.md).
+
+Обновлённый C++: [инструкция и диагностика](CPP_RU.md).

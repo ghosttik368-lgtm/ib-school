@@ -29,12 +29,12 @@ jobs:
       - run: sh compose.sh init
       - run: sh compose.sh config --quiet
       - run: sh compose.sh up -d --build
-      - run: sh compose.sh exec -T judge-local python backend/manage.py check_runner
+      - run: sh compose.sh exec -T judge-local python backend/manage.py check_runner --repeat 20
       - name: AI is absent
         run: |
           test -z "$(sh compose.sh ps --services --status running | grep -E '^(autoquiz|ollama)$' || true)"
           sh compose.sh exec -T web python -c "import importlib.util; assert importlib.util.find_spec('faster_whisper') is None"
-      - run: python tools/dc.py run --rm --no-deps -T web python backend/manage.py test accounts.tests_issuance --noinput
+      - run: python tools/dc.py run --rm --no-deps -T web python backend/manage.py test accounts.tests_issuance practice --noinput
       - name: Docker-only backup
         run: sh compose.sh backup
       - name: HTTP health

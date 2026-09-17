@@ -1,11 +1,15 @@
 """Docker-only execution. Never falls back to a host compiler or host execution."""
 import json
+import hashlib
+from collections import OrderedDict
 import subprocess
 import tempfile
 import time
 import uuid
 
 IMAGE = 'ib-cpp-runner:m34'
+# Per-worker RAM cache; successful binaries only, bounded to at most 8 * 2 MB.
+_BINARY_CACHE = OrderedDict()
 
 
 class RunnerError(Exception):
@@ -64,11 +68,19 @@ def sandbox(payload, cancelled=lambda: False):
 
 
 def judge(code, tests, time_limit, memory_limit, cancelled=lambda: False, run_input=None):
-    built = sandbox({'mode':'compile', 'code':code}, cancelled)
-    if built.get('status') != 'ok':
-        return {'status':'compile_error', 'diagnostic':built.get('stderr', '')[:65536]}
-    binary = built.get('binary')
-    if not isinstance(binary, str) or len(binary)>2800000: raise RunnerError('Неверный исполняемый файл.')
+    if cancelled(): raise Cancelled()
+    key = hashlib.sha256((IMAGE+'\0'+code).encode()).hexdigest()
+    binary = _BINARY_CACHE.get(key)
+    if binary is None:
+        built = sandbox({'mode':'compile', 'code':code}, cancelled)
+        if built.get('status') != 'ok':
+            return {'status':'compile_error', 'diagnostic':built.get('stderr', '')[:65536]}
+        binary = built.get('binary')
+        if not isinstance(binary, str) or len(binary)>2800000: raise RunnerError('Неверный исполняемый файл.')
+        _BINARY_CACHE[key] = binary
+        while len(_BINARY_CACHE)>8: _BINARY_CACHE.popitem(last=False)
+    else:
+        _BINARY_CACHE.move_to_end(key)
     if run_input is not None:
         result = sandbox({'mode':'run', 'binary':binary, 'stdin':run_input, 'time':time_limit, 'memory':memory_limit}, cancelled)
         return {'status':'run_ok' if result.get('status')=='ok' else result.get('status','error'), 'stdout':str(result.get('stdout',''))[:65536], 'diagnostic':str(result.get('stderr',''))[:65536]}

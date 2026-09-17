@@ -2,7 +2,7 @@ import uuid
 from datetime import timedelta
 from django.core.exceptions import ValidationError, PermissionDenied
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 from learning.models import BlockProgress
 from learning.services import authorize, lock_user, finish
@@ -40,16 +40,20 @@ def enqueue(user, task, code, stdin, mode, key):
     if Submission.objects.filter(user=user, submitted_at__gte=timezone.now()-timedelta(minutes=1)).count()>=10:
         raise ValidationError('Не больше 10 запусков в минуту. Подождите немного.')
     return Submission.objects.create(user=user, task=task, mode=mode, code=code, stdin=stdin, request_key=key,
-                                     total_tests=len(task.tests) if mode=='check' else 0)
+                                     total_tests=len(task.tests) if mode=='check' else 0,
+                                     task_snapshot={'tests':task.tests, 'time':task.time_limit, 'memory':task.memory_limit})
 
 
 def claim():
     now = timezone.now()
-    Submission.objects.filter(status='running', lease_until__lt=now).update(status='error', diagnostic='Обработчик был прерван. Отправьте решение снова.', finished_at=now)
-    candidate = Submission.objects.filter(status='queued').select_related('task').order_by('submitted_at','id').first()
+    # Expired leases can be reclaimed after worker/database interruption.
+    expired = Submission.objects.filter(status='running', lease_until__lt=now)
+    expired.filter(retries__gte=2).update(status='error', diagnostic='Проверка временно недоступна. Повторите отправку позже.', finished_at=now)
+    expired.filter(retries__lt=2).update(status='queued', retries=F('retries')+1, claim_token=None, retry_after=now)
+    candidate = Submission.objects.filter(status='queued').filter(Q(retry_after__isnull=True)|Q(retry_after__lte=now)).select_related('task').order_by('submitted_at','id').first()
     if not candidate: return None
     token = uuid.uuid4()
-    duration = 90 + max(1, len(candidate.task.tests)) * (candidate.task.time_limit + 20)
+    duration = 120
     changed = Submission.objects.filter(pk=candidate.pk, status='queued').update(status='running', claim_token=token, started_at=now, lease_until=now+timedelta(seconds=duration))
     if not changed: return None
     candidate.status = 'running'; candidate.claim_token = token
@@ -97,10 +101,12 @@ def process_one(worker_name):
         now = timezone.now()
         if (now-last_beat[0]).total_seconds() >= 5:
             Worker.objects.filter(name=worker_name).update(heartbeat=now)
+            Submission.objects.filter(pk=job.pk, status='running', claim_token=job.claim_token).update(lease_until=now+timedelta(seconds=120))
             last_beat[0] = now
         return not Submission.objects.filter(pk=job.pk, status='running', claim_token=job.claim_token).exists()
     try:
-        result = judge(job.code, job.task.tests, job.task.time_limit, job.task.memory_limit, cancelled,
+        snapshot = job.task_snapshot or {'tests':job.task.tests, 'time':job.task.time_limit, 'memory':job.task.memory_limit}
+        result = judge(job.code, snapshot['tests'], snapshot['time'], snapshot['memory'], cancelled,
                        run_input=job.stdin if job.mode=='run' else None)
     except Cancelled:
         return True
@@ -108,6 +114,12 @@ def process_one(worker_name):
         Submission.objects.filter(pk=job.pk,status='running',claim_token=job.claim_token).update(status='error',diagnostic='Обработчик остановлен. Отправьте решение повторно.',finished_at=timezone.now())
         raise
     except RunnerError as exc:
+        if job.retries < 2:
+            Submission.objects.filter(pk=job.pk, status='running', claim_token=job.claim_token).update(
+                status='queued', retries=F('retries')+1, claim_token=None,
+                retry_after=timezone.now()+timedelta(seconds=5*(job.retries+1)),
+                diagnostic='Повторяем проверку после временной ошибки сервиса.')
+            return True
         result = {'status':'error', 'diagnostic':str(exc)}
     except Exception:
         import logging

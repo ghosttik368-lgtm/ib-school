@@ -1,0 +1,3 @@
+CodeMirror 5.65.20, MIT
+https://github.com/codemirror/codemirror5/tree/5.65.20
+https://registry.npmjs.org/codemirror/-/codemirror-5.65.20.tgz

@@ -137,8 +137,66 @@ class PracticeTests(TestCase):
         self.assertEqual(response.url,reverse('learning:block',args=[self.material.pk]))
         self.assertContains(self.client.get('/library/'),'Продолжить')
 
+    def test_repeated_submissions_and_single_reward(self):
+        # More than two full request/claim/finish cycles; rate window resets naturally in production.
+        for n in range(8):
+            self.job(code='int main(){} // '+str(n))
+            with patch('practice.services.judge',return_value={'status':'accepted','passed_tests':1}):
+                self.assertTrue(process_one('test'))
+        self.assertEqual(Submission.objects.filter(status='accepted').count(),8)
+        self.assertEqual(BlockProgress.objects.filter(completed_at__isnull=False).count(),1)
+
+    def test_temporary_runner_failure_retries_same_submission(self):
+        job=self.job()
+        with patch('practice.services.judge',side_effect=RunnerError('offline')):
+            process_one('test')
+        job.refresh_from_db()
+        self.assertEqual((job.status,job.retries),('queued',1))
+        self.assertIsNone(claim())
+        Submission.objects.filter(pk=job.pk).update(retry_after=timezone.now()-timedelta(seconds=1))
+        with patch('practice.services.judge',return_value={'status':'accepted','passed_tests':1}):
+            process_one('test')
+        job.refresh_from_db();self.assertEqual(job.status,'accepted')
+        self.assertEqual(Submission.objects.count(),1)
+
+    def test_retry_budget_is_bounded(self):
+        job=self.job()
+        for _ in range(3):
+            Submission.objects.filter(pk=job.pk).update(retry_after=timezone.now()-timedelta(seconds=1))
+            with patch('practice.services.judge',side_effect=RunnerError('offline')):process_one('test')
+        job.refresh_from_db();self.assertEqual(job.status,'error');self.assertEqual(job.retries,2)
+        self.assertFalse(BlockProgress.objects.filter(completed_at__isnull=False).exists())
+
+    def test_expired_lease_recovered_and_old_token_rejected(self):
+        self.job();old=claim()
+        Submission.objects.filter(pk=old.pk).update(lease_until=timezone.now()-timedelta(seconds=1))
+        new=claim();self.assertEqual(old.pk,new.pk);self.assertNotEqual(old.claim_token,new.claim_token)
+        commit_result(old,{'status':'accepted','passed_tests':1})
+        self.assertFalse(BlockProgress.objects.filter(completed_at__isnull=False).exists())
+        commit_result(new,{'status':'accepted','passed_tests':1})
+        self.assertTrue(BlockProgress.objects.filter(completed_at__isnull=False).exists())
+
+    def test_task_is_frozen_at_submission_and_not_exposed(self):
+        self.job()
+        self.task.tests=[{'input':'changed','output':'changed'}];self.task.save()
+        with patch('practice.services.judge',return_value={'status':'accepted','passed_tests':1}) as judge_mock:
+            process_one('test')
+        self.assertEqual(judge_mock.call_args.args[1],[{'input':'SECRET_INPUT','output':'SECRET_OUTPUT'}])
+        self.assertNotContains(self.client.get(reverse('practice:history',args=[self.material.pk])),'SECRET')
+
+    def test_active_job_is_returned_independently_of_history_page(self):
+        active=self.job()
+        data=self.client.get(reverse('practice:history',args=[self.material.pk])).json()
+        self.assertEqual(data['active']['id'],str(active.pk))
+        self.post('cancel',{},active.pk)
+        self.assertIsNone(self.client.get(reverse('practice:history',args=[self.material.pk])).json()['active'])
+
 
 class EngineTests(SimpleTestCase):
+    def setUp(self):
+        from .engine import _BINARY_CACHE
+        _BINARY_CACHE.clear()
+
     def test_expected_answer_never_enters_sandbox_and_whitespace_comparison(self):
         calls=[]
         def fake(payload,cancelled):
@@ -158,3 +216,17 @@ class EngineTests(SimpleTestCase):
         from practice.engine import check_docker
         with patch('practice.engine.subprocess.run',side_effect=FileNotFoundError):
             with self.assertRaises(RunnerError):check_docker()
+
+    def test_successful_compile_is_reused_but_each_input_runs_isolated(self):
+        with patch('practice.engine.sandbox',side_effect=[{'status':'ok','binary':'YQ=='},{'status':'ok','stdout':'a'},{'status':'ok','stdout':'b'}]) as box:
+            self.assertEqual(judge('same',[],2,128,run_input='a')['stdout'],'a')
+            self.assertEqual(judge('same',[],2,128,run_input='b')['stdout'],'b')
+        self.assertEqual([c.args[0]['mode'] for c in box.call_args_list],['compile','run','run'])
+
+    def test_worker_recovers_database_connection(self):
+        from django.core.management import call_command
+        from django.db import OperationalError
+        with patch('practice.management.commands.judge_worker.check_docker'), patch('practice.management.commands.judge_worker.time.sleep'), patch('practice.management.commands.judge_worker.close_old_connections'), patch('practice.management.commands.judge_worker.Worker'):
+            with patch('practice.management.commands.judge_worker.process_one',side_effect=[OperationalError('restart'),False,KeyboardInterrupt]) as process:
+                call_command('judge_worker')
+                self.assertEqual(process.call_count,3)

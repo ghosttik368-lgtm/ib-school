@@ -4,7 +4,7 @@
  const initial=JSON.parse(document.getElementById('workspace-data').textContent);
  const csrf=document.querySelector('#workspace-csrf input').value;
  async function api(url,options={}){
-   const response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,headers:{'X-CSRFToken':csrf,...options.headers}});
+   const response=await fetch(url,{signal:AbortSignal.timeout(15000),credentials:'same-origin',cache:'no-store',...options,headers:{'X-CSRFToken':csrf,...options.headers}});
    if(response.redirected)throw new Error('Сессия закончилась. Сохраните код в файл и войдите снова.');
    let data;try{data=await response.json();}catch{throw new Error('Сервер недоступен. Ваш код остаётся в редакторе.');}
    if(!response.ok){const error=new Error(data.error||'Запрос не выполнен.');error.conflict=response.status===409;throw error;}
@@ -33,6 +33,17 @@
  const code=document.getElementById('source-code'),stdin=document.getElementById('program-input'),status=document.getElementById('code-status');
  const run=document.getElementById('code-run'),check=document.getElementById('code-check');
  code.value=initial.code;stdin.value=initial.stdin;
+ let cm=null;
+ if(window.CodeMirror){
+   cm=CodeMirror.fromTextArea(code,{mode:'text/x-c++src',lineNumbers:true,indentUnit:4,tabSize:4,matchBrackets:true,autoCloseBrackets:true,viewportMargin:20,extraKeys:{'Tab':c=>c.execCommand('insertSoftTab'),'Ctrl-Enter':()=>send('run'),'Shift-Ctrl-Enter':()=>send('check')}});
+   cm.on('change',()=>{cm.save();changed();});
+ }
+ function uuid(){
+   const b=new Uint8Array(16);crypto.getRandomValues(b);b[6]=(b[6]&15)|64;b[8]=(b[8]&63)|128;
+   const h=Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');return [h.slice(0,8),h.slice(8,12),h.slice(12,16),h.slice(16,20),h.slice(20)].join('-');
+ }
+ let active=null;
+ function buttons(){run.disabled=check.disabled=busy||!!active;document.getElementById('code-cancel').hidden=!active;}
  let revision=initial.revision,generation=0,saved=0,savePromise=null,conflict=false,timer=null,busy=false,page=1,pages=1,pending=null,historyBusy=false,lastHistory='';
  const labels={queued:'В очереди',running:'Проверяется',accepted:'Решение принято',wrong_answer:'Неверный ответ',compile_error:'Ошибка компиляции',runtime_error:'Ошибка выполнения',time_limit:'Превышено время',output_limit:'Слишком большой вывод',run_ok:'Запуск завершён',error:'Ошибка проверки',cancelled:'Отменено'};
  function changed(){generation++;status.textContent='Есть несохранённые изменения';clearTimeout(timer);timer=setTimeout(()=>save().catch(()=>{}),900);}
@@ -53,22 +64,23 @@
  document.getElementById('code-download').addEventListener('click',()=>{const url=URL.createObjectURL(new Blob([code.value],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='solution.cpp';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});
  window.addEventListener('beforeunload',event=>{if(saved<generation){event.preventDefault();event.returnValue='';}});
  async function send(mode){
-   if(busy)return;busy=true;run.disabled=check.disabled=true;
+   if(busy||active)return;busy=true;buttons();
    try{
      await save();
      const snapshot={mode,code:code.value,stdin:stdin.value};
      const signature=JSON.stringify(snapshot);
-     if(!pending||pending.signature!==signature)pending={signature,key:crypto.randomUUID()};
-     const result=await post(editor.dataset.submit,{...snapshot,key:pending.key});pending=null;
+     if(!pending||pending.signature!==signature)pending={signature,key:uuid()};
+     const result=await post(editor.dataset.submit,{...snapshot,key:pending.key});pending=null;active=result;buttons();
      document.getElementById('practice-result').textContent=labels[result.status]||result.status;
      page=1;lastHistory='';await poll();
    }catch(error){document.getElementById('practice-result').textContent=error.message;}
-   finally{busy=false;run.disabled=check.disabled=false;}
+   finally{busy=false;buttons();}
  }
+ document.getElementById('code-cancel').addEventListener('click',()=>{if(active)cancel(active.id);});
  run.addEventListener('click',()=>send('run'));check.addEventListener('click',()=>send('check'));
  function node(tag,text,cls){const el=document.createElement(tag);el.textContent=text;if(cls)el.className=cls;return el;}
  async function showSource(id){
-   try{const data=await api(`/submissions/${id}/source/`);if(!confirm('Заменить код редактора этой отправкой? Текущий код можно предварительно скачать.'))return;code.value=data.code;stdin.value=data.stdin;changed();}
+   try{const data=await api(`/submissions/${id}/source/`);if(!confirm('Заменить код редактора этой отправкой? Текущий код можно предварительно скачать.'))return;code.value=data.code;if(cm)cm.setValue(data.code);stdin.value=data.stdin;changed();}
    catch(error){status.textContent=error.message;}
  }
  async function cancel(id){try{await post(`/submissions/${id}/cancel/`,{});lastHistory='';await poll();}catch(error){status.textContent=error.message;}}
@@ -76,6 +88,12 @@
    if(historyBusy||document.hidden)return;historyBusy=true;const requested=page;
    try{
      const data=await api(editor.dataset.history+'?page='+page);if(requested!==page)return;
+     active=data.active;buttons();
+     const latest=active||data.items[0];
+     if(latest&&page===1){
+       const output=document.getElementById('program-output');output.hidden=false;output.textContent=(labels[latest.status]||latest.status)+'\n'+(latest.stdout||'')+(latest.diagnostic?'\n'+latest.diagnostic:'');
+       output.dataset.status=latest.status;
+     }
      document.getElementById('runner-state').textContent=data.available?'Проверка доступна':'Обработчик выключен';
      if(data.done){document.getElementById('practice-result').textContent='✓ Блок пройден. За него начислен 1 балл.';document.getElementById('practice-result').className='practice-success';}
      document.querySelectorAll('[data-course-percent]').forEach(el=>el.textContent=`Пройдено ${data.progress}% курса`);

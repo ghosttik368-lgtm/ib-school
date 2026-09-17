@@ -1,6 +1,6 @@
 {% extends 'base.html' %}{% load static %}
 {% block title %}{{ material.title }} — ИБ{% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{% static 'css/studio.css' %}"><link rel="stylesheet" href="{% static 'css/learning.css' %}"><link rel="stylesheet" href="{% static 'css/practice.css' %}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'vendor/codemirror/codemirror.css' %}"><link rel="stylesheet" href="{% static 'css/studio.css' %}"><link rel="stylesheet" href="{% static 'css/learning.css' %}"><link rel="stylesheet" href="{% static 'css/practice.css' %}">{% endblock %}
 {% block content %}
 <div class="page-container page-enter learning-page" id="study-block" data-id="{{ material.id }}" data-save="{% url 'practice:save' material.id %}">
   {{ workspace_data|json_script:'workspace-data' }}
@@ -40,4 +40,4 @@
   <details class="study-outline"><summary>Навигация по курсу</summary>{% for item in all_blocks %}<a class="{% if item.done %}study-finished{% endif %}" href="{% url 'learning:block' item.id %}">{% if item.done %}✓{% endif %} {{ item.lesson.title }} · {{ item.title }}</a>{% endfor %}</details>
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/practice.js' %}" defer></script>{% endblock %}
+{% block extra_js %}{% if task %}<script src="{% static 'vendor/codemirror/codemirror.js' %}" defer></script><script src="{% static 'vendor/codemirror/clike.js' %}" defer></script><script src="{% static 'vendor/codemirror/matchbrackets.js' %}" defer></script><script src="{% static 'vendor/codemirror/closebrackets.js' %}" defer></script>{% endif %}<script src="{% static 'js/practice.js' %}" defer></script>{% endblock %}

@@ -59,7 +59,8 @@ def save_workspace(request, pk):
 
 def serialize(job):
     return {'id':str(job.pk),'status':job.status,'mode':job.mode,'submitted':job.submitted_at.isoformat(),
-            'diagnostic':job.diagnostic,'stdout':job.stdout,'passed':job.passed_tests,'total':job.total_tests}
+            'diagnostic':job.diagnostic,'stdout':job.stdout,'passed':job.passed_tests,'total':job.total_tests,
+            'retries':job.retries}
 
 
 @login_required
@@ -86,7 +87,7 @@ def history(request, pk):
     page=Paginator(jobs,20).get_page(request.GET.get('page',1))
     done=BlockProgress.objects.filter(user=request.user,material=material,completed_at__isnull=False).exists()
     enrollment=Enrollment.objects.get(user=request.user,course=material.lesson.module.course)
-    return JsonResponse({'items':[serialize(x) for x in page], 'page':page.number,'pages':page.paginator.num_pages,'available':worker_available(),'done':done,'progress':enrollment.progress_percent})
+    return JsonResponse({'items':[serialize(x) for x in page], 'page':page.number,'pages':page.paginator.num_pages,'active':next((serialize(j) for j in jobs.filter(status__in=['queued','running'])[:1]),None),'available':worker_available(),'done':done,'progress':enrollment.progress_percent})
 
 
 @login_required
