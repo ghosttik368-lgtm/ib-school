@@ -91,6 +91,7 @@
      active=data.active;buttons();
      const latest=active||data.items[0];
      if(latest&&page===1){
+       document.getElementById('practice-result').textContent=(labels[latest.status]||latest.status)+(latest.total?' · '+latest.passed+'/'+latest.total+' тестов':'');
        const output=document.getElementById('program-output');output.hidden=false;output.textContent=(labels[latest.status]||latest.status)+'\n'+(latest.stdout||'')+(latest.diagnostic?'\n'+latest.diagnostic:'');
        output.dataset.status=latest.status;
      }
